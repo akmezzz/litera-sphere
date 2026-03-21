@@ -5,3 +5,5 @@ obj/
 .codex-nuget/
 app.db
 tutor-platform-demo.db
+run-output.log
+run-error.log
