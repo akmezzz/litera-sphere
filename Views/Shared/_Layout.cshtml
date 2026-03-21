@@ -20,6 +20,10 @@
                 @if (User.Identity.IsAuthenticated)
                 {
                     <a asp-controller="Home" asp-action="RedirectToDashboard">Кабинет</a>
+                    @if (User.IsInRole("Tutor"))
+                    {
+                        <a asp-controller="Tutor" asp-action="Students">Ученики</a>
+                    }
                 }
             </nav>
             <partial name="_LoginPartial" />

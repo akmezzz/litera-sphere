@@ -44,6 +44,33 @@ namespace TutorPlatform.ViewModels
         public List<string> GroupNames { get; set; } = new List<string>();
     }
 
+    public class StudentsListViewModel
+    {
+        public string SearchQuery { get; set; }
+        public List<StudentCardViewModel> Students { get; set; } = new List<StudentCardViewModel>();
+    }
+
+    public class StudentCardViewModel
+    {
+        public string Id { get; set; }
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string GradeLabel { get; set; }
+        public List<string> GroupNames { get; set; } = new List<string>();
+        public int SubmissionCount { get; set; }
+        public int ReviewedSubmissionCount { get; set; }
+    }
+
+    public class StudentDetailsViewModel
+    {
+        public string StudentId { get; set; }
+        public string FullName { get; set; }
+        public string Email { get; set; }
+        public string GradeLabel { get; set; }
+        public List<GroupOptionViewModel> Groups { get; set; } = new List<GroupOptionViewModel>();
+        public List<SubmissionSummaryViewModel> Submissions { get; set; } = new List<SubmissionSummaryViewModel>();
+    }
+
     public class SubmissionSummaryViewModel
     {
         public int Id { get; set; }
@@ -130,6 +157,29 @@ namespace TutorPlatform.ViewModels
         public string GradeLabel { get; set; }
 
         [Display(Name = "Сразу добавить в группы")]
+        public List<int> GroupIds { get; set; } = new List<int>();
+
+        public List<GroupOptionViewModel> AvailableGroups { get; set; } = new List<GroupOptionViewModel>();
+    }
+
+    public class EditStudentViewModel
+    {
+        public string StudentId { get; set; }
+
+        [Required]
+        [StringLength(120)]
+        [Display(Name = "Имя ученика")]
+        public string FullName { get; set; }
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; }
+
+        [Display(Name = "Класс")]
+        public string GradeLabel { get; set; }
+
+        [Display(Name = "Группы")]
         public List<int> GroupIds { get; set; } = new List<int>();
 
         public List<GroupOptionViewModel> AvailableGroups { get; set; } = new List<GroupOptionViewModel>();

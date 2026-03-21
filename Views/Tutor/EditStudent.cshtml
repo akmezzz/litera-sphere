@@ -1,0 +1,45 @@
+@model TutorPlatform.ViewModels.EditStudentViewModel
+@{
+    ViewData["Title"] = "Редактирование ученика";
+}
+
+<section class="form-shell">
+    <div class="section-heading">
+        <span class="eyebrow">Редактирование профиля</span>
+        <h1>Редактировать ученика</h1>
+    </div>
+
+    <form method="post" class="editor-form">
+        @Html.AntiForgeryToken()
+        <input asp-for="StudentId" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <label asp-for="FullName"></label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+
+        <label asp-for="Email"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+
+        <label asp-for="GradeLabel"></label>
+        <input asp-for="GradeLabel" class="form-control" />
+
+        <label asp-for="GroupIds"></label>
+        <select asp-for="GroupIds" class="form-control" multiple size="10">
+            @foreach (var group in Model.AvailableGroups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Сохранить изменения</button>
+            <a class="btn btn-ghost" asp-action="StudentDetails" asp-route-id="@Model.StudentId">Назад</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,44 @@
+@model TutorPlatform.ViewModels.StudentsListViewModel
+@{
+    ViewData["Title"] = "Ученики";
+}
+
+<section class="dashboard-header">
+    <div>
+        <span class="eyebrow">База учеников</span>
+        <h1>Все ученики</h1>
+        <p>Ищите по имени, email и классу, открывайте профиль и редактируйте группы.</p>
+    </div>
+    <div class="hero__actions">
+        <a class="btn btn-accent" asp-action="CreateStudent">Новый ученик</a>
+        <a class="btn btn-ghost" asp-action="Index">Назад в кабинет</a>
+    </div>
+</section>
+
+<section class="form-shell">
+    <form method="get" class="editor-form form-grid">
+        <div>
+            <label for="searchQuery">Поиск</label>
+            <input id="searchQuery" name="searchQuery" value="@Model.SearchQuery" class="form-control" placeholder="Имя, email или класс" />
+        </div>
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Найти</button>
+        </div>
+    </form>
+</section>
+
+<section class="dashboard-grid">
+    @foreach (var student in Model.Students)
+    {
+        <article class="panel">
+            <div class="panel__header">
+                <h2>@student.FullName</h2>
+                <a class="btn btn-ghost btn-sm" asp-action="StudentDetails" asp-route-id="@student.Id">Открыть</a>
+            </div>
+            <p>@student.Email</p>
+            <p class="muted">@(string.IsNullOrWhiteSpace(student.GradeLabel) ? "класс не указан" : student.GradeLabel)</p>
+            <p class="muted">Группы: @(student.GroupNames.Any() ? string.Join(", ", student.GroupNames) : "не назначены")</p>
+            <p class="muted">Работы: @student.SubmissionCount | Проверено: @student.ReviewedSubmissionCount</p>
+        </article>
+    }
+</section>

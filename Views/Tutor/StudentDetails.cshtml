@@ -1,0 +1,88 @@
+@model TutorPlatform.ViewModels.StudentDetailsViewModel
+@{
+    ViewData["Title"] = "Профиль ученика";
+}
+
+<section class="dashboard-header">
+    <div>
+        <span class="eyebrow">Профиль ученика</span>
+        <h1>@Model.FullName</h1>
+        <p>@Model.Email | @(string.IsNullOrWhiteSpace(Model.GradeLabel) ? "класс не указан" : Model.GradeLabel)</p>
+    </div>
+    <div class="hero__actions">
+        <a class="btn btn-accent" asp-action="EditStudent" asp-route-id="@Model.StudentId">Редактировать профиль</a>
+        <a class="btn btn-ghost" asp-action="Students">Все ученики</a>
+    </div>
+</section>
+
+@if (TempData["StatusMessage"] != null)
+{
+    <div class="status-banner">@TempData["StatusMessage"]</div>
+}
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Группы</h2>
+            <span>@Model.Groups.Count</span>
+        </div>
+        @if (Model.Groups.Any())
+        {
+            @foreach (var group in Model.Groups)
+            {
+                <div class="list-card">
+                    <div class="badge-row">
+                        <h3>@group.Name</h3>
+                        <form method="post" asp-action="RemoveStudentFromGroup" class="inline-form">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="studentId" value="@Model.StudentId" />
+                            <input type="hidden" name="groupId" value="@group.Id" />
+                            <button type="submit" class="btn btn-ghost btn-sm">Убрать</button>
+                        </form>
+                    </div>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Ученик пока не состоит в группах.</p>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Журнал работ</h2>
+            <span>@Model.Submissions.Count</span>
+        </div>
+        @if (Model.Submissions.Any())
+        {
+            @foreach (var submission in Model.Submissions)
+            {
+                <div class="list-card">
+                    <div class="badge-row">
+                        @if (submission.IsReviewed)
+                        {
+                            <span class="tag tag--success">Проверено</span>
+                        }
+                        else if (submission.NeedsManualReview)
+                        {
+                            <span class="tag tag--warning">Ждет проверки</span>
+                        }
+                    </div>
+                    <h3>@submission.TestTitle</h3>
+                    <p class="muted">Авто: @submission.AutoScore / @submission.MaxScore</p>
+                    @if (submission.TutorScore.HasValue)
+                    {
+                        <p><strong>Итог репетитора:</strong> @submission.TutorScore / @submission.MaxScore</p>
+                    }
+                    <p class="muted">Отправлено: @submission.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                    <a class="btn btn-accent" asp-action="ReviewSubmission" asp-route-id="@submission.Id">Открыть работу</a>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">У ученика пока нет отправленных работ.</p>
+        }
+    </article>
+</section>

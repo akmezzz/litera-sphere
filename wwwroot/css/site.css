@@ -348,3 +348,7 @@ textarea.form-control {
 .submission-review-form {
     margin-top: 1.5rem;
 }
+
+.inline-form {
+    margin: 0;
+}
