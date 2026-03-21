@@ -1,0 +1,62 @@
+@model TutorPlatform.ViewModels.ReviewSubmissionViewModel
+@{
+    ViewData["Title"] = "Проверка работы";
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">Проверка работы</span>
+        <h1>@Model.StudentName</h1>
+        <p>@Model.StudentEmail | @Model.StudentGradeLabel</p>
+        <p>@Model.TestTitle (@Model.ExamType / @Model.MechanicType)</p>
+        <p class="muted">Автопроверка: @Model.AutoScore / @Model.MaxScore | Отправлено: @Model.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        @if (Model.ReviewedAtUtc.HasValue)
+        {
+            <p class="muted">Последняя проверка: @Model.ReviewedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        }
+    </div>
+
+    <div class="editor-form">
+        @foreach (var answer in Model.Answers)
+        {
+            <article class="question-card">
+                <div class="badge-row">
+                    <h2>Задание @answer.Order</h2>
+                    <span class="tag">@answer.QuestionType</span>
+                </div>
+                <p>@answer.Prompt</p>
+                @if (!string.IsNullOrWhiteSpace(answer.CorrectAnswer))
+                {
+                    <p><strong>Правильный ответ:</strong> @answer.CorrectAnswer</p>
+                }
+                <p><strong>Ответ ученика:</strong> @(string.IsNullOrWhiteSpace(answer.SubmittedValue) ? "нет ответа" : answer.SubmittedValue)</p>
+                <p class="muted">Автобаллы: @answer.AwardedPoints / @answer.MaxPoints</p>
+                @if (!string.IsNullOrWhiteSpace(answer.Explanation))
+                {
+                    <p class="muted">Критерий: @answer.Explanation</p>
+                }
+            </article>
+        }
+    </div>
+
+    <form method="post" class="editor-form submission-review-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="SubmissionId" value="@Model.SubmissionId" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <label for="TutorScore">Итоговая оценка</label>
+        <input id="TutorScore" name="TutorScore" type="number" step="0.5" min="0" max="@Model.MaxScore.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" value="@Model.TutorScore?.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+
+        <label for="TutorFeedback">Комментарий ученику</label>
+        <textarea id="TutorFeedback" name="TutorFeedback" class="form-control" rows="5">@Model.TutorFeedback</textarea>
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Сохранить проверку</button>
+            <a class="btn btn-ghost" asp-action="Index">Назад</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

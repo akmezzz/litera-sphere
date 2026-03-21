@@ -16,6 +16,9 @@ namespace TutorPlatform.Models
         public decimal AutoScore { get; set; }
         public decimal MaxScore { get; set; }
         public bool NeedsManualReview { get; set; }
+        public decimal? TutorScore { get; set; }
+        public string TutorFeedback { get; set; }
+        public DateTime? ReviewedAtUtc { get; set; }
 
         public ICollection<StudentAnswer> Answers { get; set; } = new List<StudentAnswer>();
     }

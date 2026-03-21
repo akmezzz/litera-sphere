@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -44,25 +46,46 @@ namespace TutorPlatform.Controllers
 
             var students = await _dbContext.Users
                 .AsNoTracking()
-                .Where(user => user.PlatformRole == PlatformRoles.Student)
+                .Where(user => user.PlatformRole == PlatformRoles.Student || string.IsNullOrWhiteSpace(user.PlatformRole))
                 .OrderBy(user => user.FullName)
+                .ThenBy(user => user.Email)
                 .Select(user => new StudentOptionViewModel
                 {
                     Id = user.Id,
-                    Label = $"{user.FullName} ({user.Email})"
+                    Email = user.Email,
+                    GradeLabel = user.GradeLabel,
+                    Label = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} | {1}{2}",
+                        string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName,
+                        user.Email,
+                        string.IsNullOrWhiteSpace(user.GradeLabel) ? string.Empty : $" | {user.GradeLabel}")
                 })
+                .ToListAsync();
+
+            var submissions = await _dbContext.StudentSubmissions
+                .AsNoTracking()
+                .Where(submission => submission.LearningTest.TutorId == tutor.Id)
+                .Include(submission => submission.Student)
+                .Include(submission => submission.LearningTest)
+                .OrderByDescending(submission => submission.SubmittedAtUtc)
+                .Take(8)
                 .ToListAsync();
 
             var viewModel = new TutorDashboardViewModel
             {
-                TutorName = tutor.FullName,
+                TutorName = string.IsNullOrWhiteSpace(tutor.FullName) ? tutor.Email : tutor.FullName,
                 Students = students,
+                PendingReviewCount = submissions.Count(submission => submission.NeedsManualReview || !submission.ReviewedAtUtc.HasValue),
                 Groups = groups.Select(group => new TutorGroupCardViewModel
                 {
                     Id = group.Id,
                     Name = group.Name,
                     Description = group.Description,
-                    StudentNames = group.Members.Select(member => member.Student.FullName).OrderBy(name => name).ToList()
+                    StudentNames = group.Members
+                        .Select(member => string.IsNullOrWhiteSpace(member.Student.FullName) ? member.Student.Email : member.Student.FullName)
+                        .OrderBy(name => name)
+                        .ToList()
                 }).ToList(),
                 Tests = tests.Select(test => new TutorTestCardViewModel
                 {
@@ -74,10 +97,76 @@ namespace TutorPlatform.Controllers
                     IsPublished = test.IsPublished,
                     GroupCount = test.Assignments.Count,
                     SubmissionCount = test.Submissions.Count
+                }).ToList(),
+                RecentSubmissions = submissions.Select(submission => new SubmissionSummaryViewModel
+                {
+                    Id = submission.Id,
+                    StudentName = string.IsNullOrWhiteSpace(submission.Student.FullName) ? submission.Student.Email : submission.Student.FullName,
+                    TestTitle = submission.LearningTest.Title,
+                    AutoScore = submission.AutoScore,
+                    MaxScore = submission.MaxScore,
+                    SubmittedAtUtc = submission.SubmittedAtUtc,
+                    NeedsManualReview = submission.NeedsManualReview,
+                    IsReviewed = submission.ReviewedAtUtc.HasValue
                 }).ToList()
             };
 
             return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ReviewSubmission(int id)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            var viewModel = await BuildReviewSubmissionViewModelAsync(id, tutor.Id);
+            if (viewModel == null)
+            {
+                return NotFound();
+            }
+
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReviewSubmission(ReviewSubmissionInputModel model)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            var submission = await _dbContext.StudentSubmissions
+                .Include(item => item.LearningTest)
+                .FirstOrDefaultAsync(item => item.Id == model.SubmissionId && item.LearningTest.TutorId == tutor.Id);
+
+            if (submission == null)
+            {
+                return NotFound();
+            }
+
+            if (model.TutorScore > submission.MaxScore)
+            {
+                ModelState.AddModelError(nameof(model.TutorScore), $"Оценка не может быть больше максимума {submission.MaxScore}.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var reviewViewModel = await BuildReviewSubmissionViewModelAsync(model.SubmissionId, tutor.Id);
+                if (reviewViewModel == null)
+                {
+                    return NotFound();
+                }
+
+                reviewViewModel.TutorScore = model.TutorScore;
+                reviewViewModel.TutorFeedback = model.TutorFeedback;
+                return View(reviewViewModel);
+            }
+
+            submission.TutorScore = model.TutorScore;
+            submission.TutorFeedback = model.TutorFeedback?.Trim();
+            submission.ReviewedAtUtc = DateTime.UtcNow;
+            submission.NeedsManualReview = false;
+
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Оценка и комментарий сохранены. Ученик увидит их в своем кабинете.";
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
@@ -106,7 +195,7 @@ namespace TutorPlatform.Controllers
             _dbContext.StudentGroups.Add(group);
             await _dbContext.SaveChangesAsync();
 
-            var selectedStudents = model.StudentIds?.Distinct().ToList() ?? new System.Collections.Generic.List<string>();
+            var selectedStudents = model.StudentIds?.Distinct().ToList() ?? new List<string>();
             foreach (var studentId in selectedStudents)
             {
                 _dbContext.StudentGroupMembers.Add(new StudentGroupMember
@@ -132,7 +221,7 @@ namespace TutorPlatform.Controllers
         public async Task<IActionResult> CreateTest(CreateTestViewModel model)
         {
             model.Questions = model.Questions?.Where(question => !string.IsNullOrWhiteSpace(question.Prompt)).ToList()
-                ?? new System.Collections.Generic.List<QuestionEditorViewModel>();
+                ?? new List<QuestionEditorViewModel>();
 
             if (!model.Questions.Any())
             {
@@ -191,12 +280,20 @@ namespace TutorPlatform.Controllers
             model ??= new CreateGroupViewModel();
             model.AvailableStudents = await _dbContext.Users
                 .AsNoTracking()
-                .Where(user => user.PlatformRole == PlatformRoles.Student)
+                .Where(user => user.PlatformRole == PlatformRoles.Student || string.IsNullOrWhiteSpace(user.PlatformRole))
                 .OrderBy(user => user.FullName)
+                .ThenBy(user => user.Email)
                 .Select(user => new StudentOptionViewModel
                 {
                     Id = user.Id,
-                    Label = $"{user.FullName} ({user.GradeLabel})"
+                    Email = user.Email,
+                    GradeLabel = user.GradeLabel,
+                    Label = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0} | {1}{2}",
+                        string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName,
+                        user.Email,
+                        string.IsNullOrWhiteSpace(user.GradeLabel) ? string.Empty : $" | {user.GradeLabel}")
                 })
                 .ToListAsync();
 
@@ -229,6 +326,56 @@ namespace TutorPlatform.Controllers
             }
 
             return model;
+        }
+
+        private async Task<ReviewSubmissionViewModel> BuildReviewSubmissionViewModelAsync(int submissionId, string tutorId)
+        {
+            var submission = await _dbContext.StudentSubmissions
+                .AsNoTracking()
+                .Where(item => item.Id == submissionId && item.LearningTest.TutorId == tutorId)
+                .Include(item => item.Student)
+                .Include(item => item.LearningTest)
+                .Include(item => item.Answers)
+                    .ThenInclude(answer => answer.LearningTestQuestion)
+                .FirstOrDefaultAsync();
+
+            if (submission == null)
+            {
+                return null;
+            }
+
+            return new ReviewSubmissionViewModel
+            {
+                SubmissionId = submission.Id,
+                StudentName = string.IsNullOrWhiteSpace(submission.Student.FullName) ? submission.Student.Email : submission.Student.FullName,
+                StudentEmail = submission.Student.Email,
+                StudentGradeLabel = submission.Student.GradeLabel,
+                TestTitle = submission.LearningTest.Title,
+                ExamType = submission.LearningTest.ExamType,
+                MechanicType = submission.LearningTest.MechanicType,
+                AutoScore = submission.AutoScore,
+                MaxScore = submission.MaxScore,
+                NeedsManualReview = submission.NeedsManualReview,
+                SubmittedAtUtc = submission.SubmittedAtUtc,
+                TutorScore = submission.TutorScore,
+                TutorFeedback = submission.TutorFeedback,
+                ReviewedAtUtc = submission.ReviewedAtUtc,
+                Answers = submission.Answers
+                    .OrderBy(answer => answer.LearningTestQuestion.Order)
+                    .Select(answer => new SubmissionAnswerReviewViewModel
+                    {
+                        Order = answer.LearningTestQuestion.Order,
+                        Prompt = answer.LearningTestQuestion.Prompt,
+                        QuestionType = answer.LearningTestQuestion.QuestionType,
+                        CorrectAnswer = answer.LearningTestQuestion.CorrectAnswer,
+                        SubmittedValue = answer.SubmittedValue,
+                        Explanation = answer.LearningTestQuestion.Explanation,
+                        MaxPoints = answer.LearningTestQuestion.MaxPoints,
+                        AwardedPoints = answer.AwardedPoints,
+                        IsAutoCorrect = answer.IsAutoCorrect
+                    })
+                    .ToList()
+            };
         }
     }
 }

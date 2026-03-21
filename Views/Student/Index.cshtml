@@ -63,11 +63,21 @@
                 <div class="list-card">
                     <h3>@result.Title</h3>
                     <p class="muted">Автопроверка: @result.AutoScore / @result.MaxScore</p>
-                    <p class="muted">Отправлено: @result.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
-                    @if (result.NeedsManualReview)
+                    @if (result.IsReviewed)
                     {
-                        <span class="tag tag--warning">Нужна ручная проверка</span>
+                        <p><strong>Оценка репетитора:</strong> @result.TutorScore / @result.MaxScore</p>
+                        <p class="muted">Проверено: @result.ReviewedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                        @if (!string.IsNullOrWhiteSpace(result.TutorFeedback))
+                        {
+                            <p><strong>Комментарий:</strong> @result.TutorFeedback</p>
+                        }
+                        <span class="tag tag--success">Проверено преподавателем</span>
                     }
+                    else if (result.NeedsManualReview)
+                    {
+                        <span class="tag tag--warning">Ожидает проверки преподавателя</span>
+                    }
+                    <p class="muted">Отправлено: @result.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
                 </div>
             }
         }

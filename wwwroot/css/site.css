@@ -344,3 +344,7 @@ textarea.form-control {
         width: 100%;
     }
 }
+
+.submission-review-form {
+    margin-top: 1.5rem;
+}

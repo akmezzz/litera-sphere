@@ -61,8 +61,8 @@ namespace TutorPlatform.Controllers
 
             var viewModel = new StudentDashboardViewModel
             {
-                StudentName = student.FullName,
-                GradeLabel = student.GradeLabel,
+                StudentName = string.IsNullOrWhiteSpace(student.FullName) ? student.Email : student.FullName,
+                GradeLabel = string.IsNullOrWhiteSpace(student.GradeLabel) ? "класс не указан" : student.GradeLabel,
                 GroupNames = groups,
                 AssignedTests = assignments.Select(assignment => new StudentAssignedTestViewModel
                 {
@@ -80,8 +80,12 @@ namespace TutorPlatform.Controllers
                     Title = submission.LearningTest.Title,
                     AutoScore = submission.AutoScore,
                     MaxScore = submission.MaxScore,
+                    TutorScore = submission.TutorScore,
+                    TutorFeedback = submission.TutorFeedback,
                     SubmittedAtUtc = submission.SubmittedAtUtc,
-                    NeedsManualReview = submission.NeedsManualReview
+                    ReviewedAtUtc = submission.ReviewedAtUtc,
+                    NeedsManualReview = submission.NeedsManualReview,
+                    IsReviewed = submission.ReviewedAtUtc.HasValue
                 }).ToList()
             };
 

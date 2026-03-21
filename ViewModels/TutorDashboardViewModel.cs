@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -6,9 +7,11 @@ namespace TutorPlatform.ViewModels
     public class TutorDashboardViewModel
     {
         public string TutorName { get; set; }
+        public int PendingReviewCount { get; set; }
         public List<TutorGroupCardViewModel> Groups { get; set; } = new List<TutorGroupCardViewModel>();
         public List<TutorTestCardViewModel> Tests { get; set; } = new List<TutorTestCardViewModel>();
         public List<StudentOptionViewModel> Students { get; set; } = new List<StudentOptionViewModel>();
+        public List<SubmissionSummaryViewModel> RecentSubmissions { get; set; } = new List<SubmissionSummaryViewModel>();
     }
 
     public class TutorGroupCardViewModel
@@ -35,6 +38,66 @@ namespace TutorPlatform.ViewModels
     {
         public string Id { get; set; }
         public string Label { get; set; }
+        public string Email { get; set; }
+        public string GradeLabel { get; set; }
+    }
+
+    public class SubmissionSummaryViewModel
+    {
+        public int Id { get; set; }
+        public string StudentName { get; set; }
+        public string TestTitle { get; set; }
+        public decimal AutoScore { get; set; }
+        public decimal MaxScore { get; set; }
+        public DateTime SubmittedAtUtc { get; set; }
+        public bool NeedsManualReview { get; set; }
+        public bool IsReviewed { get; set; }
+    }
+
+    public class ReviewSubmissionViewModel
+    {
+        public int SubmissionId { get; set; }
+        public string StudentName { get; set; }
+        public string StudentEmail { get; set; }
+        public string StudentGradeLabel { get; set; }
+        public string TestTitle { get; set; }
+        public string ExamType { get; set; }
+        public string MechanicType { get; set; }
+        public decimal AutoScore { get; set; }
+        public decimal MaxScore { get; set; }
+        public bool NeedsManualReview { get; set; }
+        public DateTime SubmittedAtUtc { get; set; }
+        public decimal? TutorScore { get; set; }
+        public string TutorFeedback { get; set; }
+        public DateTime? ReviewedAtUtc { get; set; }
+        public List<SubmissionAnswerReviewViewModel> Answers { get; set; } = new List<SubmissionAnswerReviewViewModel>();
+    }
+
+    public class SubmissionAnswerReviewViewModel
+    {
+        public int Order { get; set; }
+        public string Prompt { get; set; }
+        public string QuestionType { get; set; }
+        public string CorrectAnswer { get; set; }
+        public string SubmittedValue { get; set; }
+        public string Explanation { get; set; }
+        public decimal MaxPoints { get; set; }
+        public decimal AwardedPoints { get; set; }
+        public bool IsAutoCorrect { get; set; }
+    }
+
+    public class ReviewSubmissionInputModel
+    {
+        public int SubmissionId { get; set; }
+
+        [Required]
+        [Range(0, 1000)]
+        [Display(Name = "Итоговая оценка")]
+        public decimal TutorScore { get; set; }
+
+        [StringLength(2000)]
+        [Display(Name = "Комментарий ученику")]
+        public string TutorFeedback { get; set; }
     }
 
     public class CreateGroupViewModel

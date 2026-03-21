@@ -30,8 +30,12 @@ namespace TutorPlatform.ViewModels
         public string Title { get; set; }
         public decimal AutoScore { get; set; }
         public decimal MaxScore { get; set; }
+        public decimal? TutorScore { get; set; }
+        public string TutorFeedback { get; set; }
         public DateTime SubmittedAtUtc { get; set; }
+        public DateTime? ReviewedAtUtc { get; set; }
         public bool NeedsManualReview { get; set; }
+        public bool IsReviewed { get; set; }
     }
 
     public class TakeTestViewModel

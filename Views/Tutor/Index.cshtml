@@ -7,7 +7,7 @@
     <div>
         <span class="eyebrow">Кабинет репетитора</span>
         <h1>@Model.TutorName</h1>
-        <p>Создавайте группы, назначайте тесты и собирайте результаты по ОГЭ, ЕГЭ и итоговому сочинению.</p>
+        <p>Создавайте группы, назначайте тесты и проверяйте отправленные работы учеников.</p>
     </div>
     <div class="hero__actions">
         <a class="btn btn-accent" asp-action="CreateGroup">Новая группа</a>
@@ -19,6 +19,67 @@
 {
     <div class="status-banner">@TempData["StatusMessage"]</div>
 }
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Отправленные работы</h2>
+            <span>@Model.RecentSubmissions.Count</span>
+        </div>
+        <p class="muted">Ожидают проверки: @Model.PendingReviewCount</p>
+        @if (Model.RecentSubmissions.Any())
+        {
+            @foreach (var submission in Model.RecentSubmissions)
+            {
+                <div class="list-card">
+                    <div class="badge-row">
+                        @if (submission.IsReviewed)
+                        {
+                            <span class="tag tag--success">Проверено</span>
+                        }
+                        else if (submission.NeedsManualReview)
+                        {
+                            <span class="tag tag--warning">Нужна проверка</span>
+                        }
+                        else
+                        {
+                            <span class="tag">Автопроверка</span>
+                        }
+                    </div>
+                    <h3>@submission.StudentName</h3>
+                    <p>@submission.TestTitle</p>
+                    <p class="muted">Авто: @submission.AutoScore / @submission.MaxScore | Отправлено: @submission.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                    <a class="btn btn-accent" asp-action="ReviewSubmission" asp-route-id="@submission.Id">Открыть работу</a>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Пока нет отправленных работ.</p>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Зарегистрированные ученики</h2>
+            <span>@Model.Students.Count</span>
+        </div>
+        @if (Model.Students.Any())
+        {
+            @foreach (var student in Model.Students)
+            {
+                <div class="list-card">
+                    <h3>@student.Label</h3>
+                    <p class="muted">Их можно добавлять в группы и использовать при назначении тестов.</p>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Пока нет зарегистрированных учеников.</p>
+        }
+    </article>
+</section>
 
 <section class="dashboard-grid">
     <article class="panel">

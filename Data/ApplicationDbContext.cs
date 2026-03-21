@@ -58,6 +58,14 @@ namespace TutorPlatform.Data
                 .Property(submission => submission.MaxScore)
                 .HasColumnType("decimal(9,2)");
 
+            builder.Entity<StudentSubmission>()
+                .Property(submission => submission.TutorScore)
+                .HasColumnType("decimal(9,2)");
+
+            builder.Entity<StudentSubmission>()
+                .Property(submission => submission.TutorFeedback)
+                .HasMaxLength(2000);
+
             builder.Entity<StudentAnswer>()
                 .Property(answer => answer.AwardedPoints)
                 .HasColumnType("decimal(9,2)");
