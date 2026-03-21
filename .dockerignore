@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+.codex-dotnet-home/
+.codex-nuget/
+.git/
+.gitignore
+app.db
+tutor-platform.db
+tutor-platform-demo.db
+run-output.log
+run-error.log

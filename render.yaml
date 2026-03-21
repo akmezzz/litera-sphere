@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: litera-sphere
+    runtime: docker
+    plan: starter
+    branch: main
+    autoDeploy: true
+    disk:
+      name: litera-sphere-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DatabaseProvider
+        value: Sqlite
+      - key: ConnectionStrings__SqliteConnection
+        value: Data Source=/var/data/tutor-platform.db

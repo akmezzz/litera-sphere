@@ -19,11 +19,22 @@
 - Репетитор: `tutor@literasphere.local` / `Tutor123!`
 - Ученик: `ivan@student.local` / `Student123!`
 
-## Запуск
+## Локальный запуск
 
 1. В каталоге проекта выполните `dotnet restore`.
 2. Затем выполните `dotnet run --no-launch-profile`.
 3. По умолчанию приложение создаст файл базы `tutor-platform.db`.
+
+## Публичный деплой на Render
+
+Проект подготовлен под Render через Docker.
+
+1. Откройте репозиторий: [https://github.com/akmezzz/litera-sphere](https://github.com/akmezzz/litera-sphere)
+2. В Render создайте `Web Service` из этого репозитория.
+3. Render подхватит [`render.yaml`](./render.yaml) и [`Dockerfile`](./Dockerfile).
+4. Для SQLite нужен persistent disk, он уже описан в `render.yaml` с mount path `/var/data`.
+
+После деплоя база будет храниться в `/var/data/tutor-platform.db` и не потеряется между перезапусками.
 
 ## Переключение на SQL Server
 
