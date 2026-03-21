@@ -65,11 +65,11 @@ namespace TutorPlatform
             {
                 app.UseExceptionHandler("/Home/Error");
                 app.UseHsts();
+                app.UseHttpsRedirection();
             }
 
             SeedData.InitializeAsync(serviceProvider).GetAwaiter().GetResult();
 
-            app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseRouting();
