@@ -4,3 +4,4 @@ obj/
 .codex-dotnet-home/
 .codex-nuget/
 app.db
+tutor-platform-demo.db
