@@ -1,0 +1,40 @@
+@model TutorPlatform.ViewModels.CreateGroupViewModel
+@{
+    ViewData["Title"] = "Новая группа";
+}
+
+<section class="form-shell">
+    <div class="section-heading">
+        <span class="eyebrow">Организация учеников</span>
+        <h1>Создать группу</h1>
+    </div>
+
+    <form method="post" class="editor-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <label asp-for="Name"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+
+        <label asp-for="Description"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+
+        <label asp-for="StudentIds"></label>
+        <select asp-for="StudentIds" class="form-control" multiple size="8">
+            @foreach (var student in Model.AvailableStudents)
+            {
+                <option value="@student.Id">@student.Label</option>
+            }
+        </select>
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Сохранить группу</button>
+            <a class="btn btn-ghost" asp-action="Index">Назад</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

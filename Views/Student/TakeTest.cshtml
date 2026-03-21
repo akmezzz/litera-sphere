@@ -1,0 +1,59 @@
+@model TutorPlatform.ViewModels.TakeTestViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">@Model.ExamType / @Model.MechanicType</span>
+        <h1>@Model.Title</h1>
+        <p>@Model.Description</p>
+        @if (Model.TimeLimitMinutes.HasValue)
+        {
+            <p class="muted">Рекомендуемый лимит: @Model.TimeLimitMinutes минут.</p>
+        }
+    </div>
+
+    <form asp-action="SubmitTest" method="post" class="editor-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="TestId" value="@Model.TestId" />
+
+        @for (var i = 0; i < Model.Questions.Count; i++)
+        {
+            var question = Model.Questions[i];
+            <article class="question-card">
+                <h2>Задание @question.Order</h2>
+                <p>@question.Prompt</p>
+                <p class="muted">Максимум: @question.MaxPoints балл(ов)</p>
+                @if (question.Options.Any())
+                {
+                    <div class="options-list">
+                        @foreach (var option in question.Options)
+                        {
+                            <label class="option-line">
+                                <input type="radio" name="Answers[@i].SubmittedValue" value="@option" />
+                                <span>@option</span>
+                            </label>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <textarea name="Answers[@i].SubmittedValue" class="form-control" rows="4"></textarea>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                {
+                    <p class="muted">Подсказка для репетитора: @question.Explanation</p>
+                }
+
+                <input type="hidden" name="Answers[@i].QuestionId" value="@question.QuestionId" />
+            </article>
+        }
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Отправить работу</button>
+            <a class="btn btn-ghost" asp-action="Index">Вернуться</a>
+        </div>
+    </form>
+</section>

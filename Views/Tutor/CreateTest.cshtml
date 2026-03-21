@@ -1,0 +1,163 @@
+@model TutorPlatform.ViewModels.CreateTestViewModel
+@{
+    ViewData["Title"] = "Новый тест";
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">Редактор контента</span>
+        <h1>Создать тест</h1>
+    </div>
+
+    <form method="post" class="editor-form">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-grid">
+            <div>
+                <label asp-for="Title"></label>
+                <input asp-for="Title" class="form-control" />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+            <div>
+                <label asp-for="ModuleName"></label>
+                <input asp-for="ModuleName" class="form-control" placeholder="Например: Тренажер ФИПИ" />
+            </div>
+            <div>
+                <label asp-for="ExamType"></label>
+                <select asp-for="ExamType" class="form-control" asp-items="@(new Microsoft.AspNetCore.Mvc.Rendering.SelectList(Model.AvailableExamTypes))"></select>
+            </div>
+            <div>
+                <label asp-for="MechanicType"></label>
+                <select asp-for="MechanicType" class="form-control" asp-items="@(new Microsoft.AspNetCore.Mvc.Rendering.SelectList(Model.AvailableMechanics))"></select>
+            </div>
+            <div>
+                <label asp-for="TimeLimitMinutes"></label>
+                <input asp-for="TimeLimitMinutes" class="form-control" />
+            </div>
+            <div class="form-check">
+                <input asp-for="IsMockExam" class="form-check-input" />
+                <label asp-for="IsMockExam" class="form-check-label"></label>
+            </div>
+            <div class="form-check">
+                <input asp-for="IsPublished" class="form-check-input" />
+                <label asp-for="IsPublished" class="form-check-label"></label>
+            </div>
+        </div>
+
+        <label asp-for="Description"></label>
+        <textarea asp-for="Description" class="form-control" rows="4" placeholder="Опишите механику, критерии проверки и инструкции для ученика."></textarea>
+
+        <label asp-for="AssignedGroupIds"></label>
+        <select asp-for="AssignedGroupIds" class="form-control" multiple size="6">
+            @foreach (var group in Model.AvailableGroups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="panel panel--editor">
+            <div class="panel__header">
+                <h2>Вопросы</h2>
+                <button type="button" class="btn btn-ghost" id="add-question-button">Добавить вопрос</button>
+            </div>
+
+            <div id="question-list">
+                @for (var i = 0; i < Model.Questions.Count; i++)
+                {
+                    <div class="question-card" data-index="@i">
+                        <div class="question-card__header">
+                            <h3>Вопрос @(i + 1)</h3>
+                        </div>
+                        <label>Формулировка</label>
+                        <textarea name="Questions[@i].Prompt" class="form-control" rows="3">@Model.Questions[i].Prompt</textarea>
+
+                        <label>Тип</label>
+                        <select name="Questions[@i].QuestionType" class="form-control">
+                            @foreach (var questionType in Model.AvailableQuestionTypes)
+                            {
+                                if (Model.Questions[i].QuestionType == questionType)
+                                {
+                                    <option value="@questionType" selected="selected">@questionType</option>
+                                }
+                                else
+                                {
+                                    <option value="@questionType">@questionType</option>
+                                }
+                            }
+                        </select>
+
+                        <label>Варианты ответа</label>
+                        <textarea name="Questions[@i].OptionsText" class="form-control" rows="3" placeholder="Каждый вариант с новой строки">@Model.Questions[i].OptionsText</textarea>
+
+                        <label>Правильный ответ</label>
+                        <input name="Questions[@i].CorrectAnswer" class="form-control" value="@Model.Questions[i].CorrectAnswer" />
+
+                        <label>Комментарий / критерий</label>
+                        <textarea name="Questions[@i].Explanation" class="form-control" rows="2">@Model.Questions[i].Explanation</textarea>
+
+                        <label>Баллы</label>
+                        <input name="Questions[@i].MaxPoints" type="number" step="0.5" min="0.5" class="form-control" value="@Model.Questions[i].MaxPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Сохранить тест</button>
+            <a class="btn btn-ghost" asp-action="Index">Назад</a>
+        </div>
+    </form>
+</section>
+
+<template id="question-template">
+    <div class="question-card" data-index="__index__">
+        <div class="question-card__header">
+            <h3>Вопрос __label__</h3>
+        </div>
+        <label>Формулировка</label>
+        <textarea name="Questions[__index__].Prompt" class="form-control" rows="3"></textarea>
+
+        <label>Тип</label>
+        <select name="Questions[__index__].QuestionType" class="form-control">
+            @foreach (var questionType in Model.AvailableQuestionTypes)
+            {
+                <option value="@questionType">@questionType</option>
+            }
+        </select>
+
+        <label>Варианты ответа</label>
+        <textarea name="Questions[__index__].OptionsText" class="form-control" rows="3" placeholder="Каждый вариант с новой строки"></textarea>
+
+        <label>Правильный ответ</label>
+        <input name="Questions[__index__].CorrectAnswer" class="form-control" />
+
+        <label>Комментарий / критерий</label>
+        <textarea name="Questions[__index__].Explanation" class="form-control" rows="2"></textarea>
+
+        <label>Баллы</label>
+        <input name="Questions[__index__].MaxPoints" type="number" step="0.5" min="0.5" class="form-control" value="1" />
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const container = document.getElementById('question-list');
+            const template = document.getElementById('question-template');
+            const button = document.getElementById('add-question-button');
+
+            if (!container || !template || !button) {
+                return;
+            }
+
+            button.addEventListener('click', function () {
+                const index = container.querySelectorAll('.question-card').length;
+                const html = template.innerHTML
+                    .replace(/__index__/g, index)
+                    .replace(/__label__/g, index + 1);
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        })();
+    </script>
+}

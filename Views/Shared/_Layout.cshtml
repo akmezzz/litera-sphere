@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - LiteraSphere</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="container site-header__inner">
+            <a class="brand-mark" asp-controller="Home" asp-action="Index">L</a>
+            <div class="site-header__titles">
+                <a asp-controller="Home" asp-action="Index">LiteraSphere</a>
+                <span>Платформа репетитора по русскому языку</span>
+            </div>
+            <nav class="site-nav">
+                <a asp-controller="Home" asp-action="Index">Главная</a>
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <a asp-controller="Home" asp-action="RedirectToDashboard">Кабинет</a>
+                }
+            </nav>
+            <partial name="_LoginPartial" />
+        </div>
+    </header>
+
+    <main class="container page-shell">
+        @RenderBody()
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

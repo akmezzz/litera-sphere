@@ -1,0 +1,81 @@
+@model TutorPlatform.ViewModels.HomeIndexViewModel
+@{
+    ViewData["Title"] = "LiteraSphere";
+}
+
+<section class="hero">
+    <div class="hero__content">
+        <span class="eyebrow">Платформа репетитора по русскому языку</span>
+        <h1>LiteraSphere</h1>
+        <p class="hero__lead">
+            Единое пространство для репетитора и учеников: авторизация, группы, редактор тестов,
+            пробники ОГЭ/ЕГЭ и отслеживание результатов.
+        </p>
+        <div class="hero__actions">
+            @if (User.Identity.IsAuthenticated)
+            {
+                <a class="btn btn-accent" asp-controller="Home" asp-action="RedirectToDashboard">Открыть кабинет</a>
+            }
+            else
+            {
+                <a class="btn btn-accent" asp-area="Identity" asp-page="/Account/Login">Войти</a>
+                <a class="btn btn-ghost" asp-area="Identity" asp-page="/Account/Register">Зарегистрировать ученика</a>
+            }
+        </div>
+        <div class="hero__credentials">
+            <strong>Демо-доступ:</strong>
+            <span>Репетитор: tutor@literasphere.local / Tutor123!</span>
+            <span>Ученик: ivan@student.local / Student123!</span>
+        </div>
+    </div>
+    <div class="hero__panel">
+        <div class="metric-card">
+            <span>Модули</span>
+            <strong>4</strong>
+            <small>От устного собеседования до сочинения</small>
+        </div>
+        <div class="metric-card">
+            <span>Механики</span>
+            <strong>15+</strong>
+            <small>Редактор под разные типы тестов</small>
+        </div>
+        <div class="metric-card">
+            <span>Потоки</span>
+            <strong>ОГЭ / ЕГЭ</strong>
+            <small>Отдельная логика пробников и таймеров</small>
+        </div>
+    </div>
+</section>
+
+<section class="section-grid">
+    <div class="section-heading">
+        <span class="eyebrow">Контентная архитектура</span>
+        <h2>Модули платформы</h2>
+    </div>
+    <div class="cards">
+        @foreach (var module in Model.FeatureModules)
+        {
+            <article class="info-card">
+                <p class="card-kicker">@module.Subtitle</p>
+                <h3>@module.Title</h3>
+                <p>@module.Description</p>
+            </article>
+        }
+    </div>
+</section>
+
+<section class="section-grid">
+    <div class="section-heading">
+        <span class="eyebrow">Контрольные тесты</span>
+        <h2>Логика обработки пробников</h2>
+    </div>
+    <div class="cards cards--compact">
+        @foreach (var exam in Model.ExamTracks)
+        {
+            <article class="info-card info-card--dark">
+                <h3>@exam.Title</h3>
+                <p>@exam.Description</p>
+            </article>
+        }
+    </div>
+</section>

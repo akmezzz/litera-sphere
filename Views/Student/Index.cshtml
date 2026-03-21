@@ -1,0 +1,79 @@
+@model TutorPlatform.ViewModels.StudentDashboardViewModel
+@{
+    ViewData["Title"] = "Кабинет ученика";
+}
+
+<section class="dashboard-header">
+    <div>
+        <span class="eyebrow">Кабинет ученика</span>
+        <h1>@Model.StudentName</h1>
+        <p>@Model.GradeLabel | Группы: @(Model.GroupNames.Any() ? string.Join(", ", Model.GroupNames) : "не назначены")</p>
+    </div>
+</section>
+
+@if (TempData["StatusMessage"] != null)
+{
+    <div class="status-banner">@TempData["StatusMessage"]</div>
+}
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Назначенные тесты</h2>
+            <span>@Model.AssignedTests.Count</span>
+        </div>
+        @if (Model.AssignedTests.Any())
+        {
+            @foreach (var test in Model.AssignedTests)
+            {
+                <div class="list-card">
+                    <div class="badge-row">
+                        <span class="tag">@test.ExamType</span>
+                        <span class="tag">@test.MechanicType</span>
+                        <span class="tag">@test.GroupName</span>
+                    </div>
+                    <h3>@test.Title</h3>
+                    <p class="muted">Заданий: @test.QuestionCount | Таймер: @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
+                    @if (test.AlreadySubmitted)
+                    {
+                        <p class="muted">Работа уже отправлена.</p>
+                    }
+                    else
+                    {
+                        <a class="btn btn-accent" asp-action="TakeTest" asp-route-id="@test.Id">Открыть тест</a>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Пока нет назначенных тестов.</p>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Результаты</h2>
+            <span>@Model.Results.Count</span>
+        </div>
+        @if (Model.Results.Any())
+        {
+            @foreach (var result in Model.Results)
+            {
+                <div class="list-card">
+                    <h3>@result.Title</h3>
+                    <p class="muted">Автопроверка: @result.AutoScore / @result.MaxScore</p>
+                    <p class="muted">Отправлено: @result.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                    @if (result.NeedsManualReview)
+                    {
+                        <span class="tag tag--warning">Нужна ручная проверка</span>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Результатов пока нет.</p>
+        }
+    </article>
+</section>

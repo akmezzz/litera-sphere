@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+.codex-dotnet-home/
+.codex-nuget/
+app.db

@@ -1,0 +1,75 @@
+@model TutorPlatform.ViewModels.TutorDashboardViewModel
+@{
+    ViewData["Title"] = "Кабинет репетитора";
+}
+
+<section class="dashboard-header">
+    <div>
+        <span class="eyebrow">Кабинет репетитора</span>
+        <h1>@Model.TutorName</h1>
+        <p>Создавайте группы, назначайте тесты и собирайте результаты по ОГЭ, ЕГЭ и итоговому сочинению.</p>
+    </div>
+    <div class="hero__actions">
+        <a class="btn btn-accent" asp-action="CreateGroup">Новая группа</a>
+        <a class="btn btn-ghost" asp-action="CreateTest">Новый тест</a>
+    </div>
+</section>
+
+@if (TempData["StatusMessage"] != null)
+{
+    <div class="status-banner">@TempData["StatusMessage"]</div>
+}
+
+<section class="dashboard-grid">
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Группы</h2>
+            <span>@Model.Groups.Count</span>
+        </div>
+        @if (Model.Groups.Any())
+        {
+            @foreach (var group in Model.Groups)
+            {
+                <div class="list-card">
+                    <h3>@group.Name</h3>
+                    <p>@group.Description</p>
+                    <p class="muted">Ученики: @(group.StudentNames.Any() ? string.Join(", ", group.StudentNames) : "пока не добавлены")</p>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Пока нет групп. Создайте первую и добавьте учеников.</p>
+        }
+    </article>
+
+    <article class="panel">
+        <div class="panel__header">
+            <h2>Тесты</h2>
+            <span>@Model.Tests.Count</span>
+        </div>
+        @if (Model.Tests.Any())
+        {
+            @foreach (var test in Model.Tests)
+            {
+                <div class="list-card">
+                    <div class="badge-row">
+                        <span class="tag">@test.ExamType</span>
+                        <span class="tag">@test.MechanicType</span>
+                        @if (test.IsPublished)
+                        {
+                            <span class="tag tag--success">Опубликован</span>
+                        }
+                    </div>
+                    <h3>@test.Title</h3>
+                    <p>@test.ModuleName</p>
+                    <p class="muted">Назначено группам: @test.GroupCount | Отправлено работ: @test.SubmissionCount</p>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="muted">Пока нет тестов. Откройте редактор и создайте первый сценарий.</p>
+        }
+    </article>
+</section>
