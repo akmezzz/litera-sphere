@@ -23,17 +23,17 @@ namespace TutorPlatform
 
         public void ConfigureServices(IServiceCollection services)
         {
-            var databaseProvider = Configuration["DatabaseProvider"] ?? "SqlServer";
+            var databaseProvider = Configuration["DatabaseProvider"] ?? "Sqlite";
 
             services.AddDbContext<ApplicationDbContext>(options =>
             {
-                if (string.Equals(databaseProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
                 {
-                    options.UseSqlite(Configuration.GetConnectionString("SqliteConnection"));
+                    options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
                 }
                 else
                 {
-                    options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+                    options.UseSqlite(Configuration.GetConnectionString("SqliteConnection"));
                 }
             });
 

@@ -4,6 +4,7 @@ obj/
 .codex-dotnet-home/
 .codex-nuget/
 app.db
+tutor-platform.db
 tutor-platform-demo.db
 run-output.log
 run-error.log
