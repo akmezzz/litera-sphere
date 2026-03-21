@@ -1,0 +1,49 @@
+@model TutorPlatform.ViewModels.CreateStudentViewModel
+@{
+    ViewData["Title"] = "Новый ученик";
+}
+
+<section class="form-shell">
+    <div class="section-heading">
+        <span class="eyebrow">Регистрация ученика</span>
+        <h1>Создать профиль ученика</h1>
+        <p>Репетитор сразу задает имя, email, временный пароль и нужные группы.</p>
+    </div>
+
+    <form method="post" class="editor-form">
+        @Html.AntiForgeryToken()
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <label asp-for="FullName"></label>
+        <input asp-for="FullName" class="form-control" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+
+        <label asp-for="Email"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+
+        <label asp-for="GradeLabel"></label>
+        <input asp-for="GradeLabel" class="form-control" placeholder="Например: 9 класс" />
+
+        <label asp-for="Password"></label>
+        <input asp-for="Password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+
+        <label asp-for="GroupIds"></label>
+        <select asp-for="GroupIds" class="form-control" multiple size="8">
+            @foreach (var group in Model.AvailableGroups)
+            {
+                <option value="@group.Id">@group.Name</option>
+            }
+        </select>
+
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Создать ученика</button>
+            <a class="btn btn-ghost" asp-action="Index">Назад</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

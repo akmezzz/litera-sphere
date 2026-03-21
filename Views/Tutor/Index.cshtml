@@ -7,10 +7,11 @@
     <div>
         <span class="eyebrow">Кабинет репетитора</span>
         <h1>@Model.TutorName</h1>
-        <p>Создавайте группы, назначайте тесты и проверяйте отправленные работы учеников.</p>
+        <p>Создавайте учеников, собирайте группы, назначайте тесты и проверяйте работы по баллам.</p>
     </div>
     <div class="hero__actions">
-        <a class="btn btn-accent" asp-action="CreateGroup">Новая группа</a>
+        <a class="btn btn-accent" asp-action="CreateStudent">Новый ученик</a>
+        <a class="btn btn-ghost" asp-action="CreateGroup">Новая группа</a>
         <a class="btn btn-ghost" asp-action="CreateTest">Новый тест</a>
     </div>
 </section>
@@ -23,7 +24,7 @@
 <section class="dashboard-grid">
     <article class="panel">
         <div class="panel__header">
-            <h2>Отправленные работы</h2>
+            <h2>Проверенные и новые работы</h2>
             <span>@Model.RecentSubmissions.Count</span>
         </div>
         <p class="muted">Ожидают проверки: @Model.PendingReviewCount</p>
@@ -48,7 +49,12 @@
                     </div>
                     <h3>@submission.StudentName</h3>
                     <p>@submission.TestTitle</p>
-                    <p class="muted">Авто: @submission.AutoScore / @submission.MaxScore | Отправлено: @submission.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                    <p class="muted">Авто: @submission.AutoScore / @submission.MaxScore</p>
+                    @if (submission.TutorScore.HasValue)
+                    {
+                        <p><strong>Итог репетитора:</strong> @submission.TutorScore / @submission.MaxScore</p>
+                    }
+                    <p class="muted">Отправлено: @submission.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
                     <a class="btn btn-accent" asp-action="ReviewSubmission" asp-route-id="@submission.Id">Открыть работу</a>
                 </div>
             }
@@ -70,7 +76,7 @@
             {
                 <div class="list-card">
                     <h3>@student.Label</h3>
-                    <p class="muted">Их можно добавлять в группы и использовать при назначении тестов.</p>
+                    <p class="muted">Группы: @(student.GroupNames.Any() ? string.Join(", ", student.GroupNames) : "пока не назначены")</p>
                 </div>
             }
         }
@@ -92,7 +98,10 @@
             @foreach (var group in Model.Groups)
             {
                 <div class="list-card">
-                    <h3>@group.Name</h3>
+                    <div class="badge-row">
+                        <h3>@group.Name</h3>
+                        <a class="btn btn-ghost btn-sm" asp-action="EditGroup" asp-route-id="@group.Id">Редактировать</a>
+                    </div>
                     <p>@group.Description</p>
                     <p class="muted">Ученики: @(group.StudentNames.Any() ? string.Join(", ", group.StudentNames) : "пока не добавлены")</p>
                 </div>

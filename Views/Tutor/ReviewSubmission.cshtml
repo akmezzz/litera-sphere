@@ -16,9 +16,14 @@
         }
     </div>
 
-    <div class="editor-form">
-        @foreach (var answer in Model.Answers)
+    <form method="post" class="editor-form submission-review-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="SubmissionId" value="@Model.SubmissionId" />
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        @for (var i = 0; i < Model.Answers.Count; i++)
         {
+            var answer = Model.Answers[i];
             <article class="question-card">
                 <div class="badge-row">
                     <h2>Задание @answer.Order</h2>
@@ -30,22 +35,32 @@
                     <p><strong>Правильный ответ:</strong> @answer.CorrectAnswer</p>
                 }
                 <p><strong>Ответ ученика:</strong> @(string.IsNullOrWhiteSpace(answer.SubmittedValue) ? "нет ответа" : answer.SubmittedValue)</p>
-                <p class="muted">Автобаллы: @answer.AwardedPoints / @answer.MaxPoints</p>
                 @if (!string.IsNullOrWhiteSpace(answer.Explanation))
                 {
                     <p class="muted">Критерий: @answer.Explanation</p>
                 }
+
+                <input type="hidden" name="Answers[@i].AnswerId" value="@answer.AnswerId" />
+
+                @if (answer.CanEditPoints)
+                {
+                    <label>Баллы за это задание</label>
+                    <input name="Answers[@i].AwardedPoints" type="number" step="0.5" min="0" max="@answer.MaxPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control review-score-input" data-max-points="@answer.MaxPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" value="@answer.AwardedPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                    <p class="muted">Максимум: @answer.MaxPoints</p>
+                }
+                else
+                {
+                    <p class="muted">Автобаллы: @answer.AwardedPoints / @answer.MaxPoints</p>
+                    <input type="hidden" name="Answers[@i].AwardedPoints" value="@answer.AwardedPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                }
             </article>
         }
-    </div>
 
-    <form method="post" class="editor-form submission-review-form">
-        @Html.AntiForgeryToken()
-        <input type="hidden" name="SubmissionId" value="@Model.SubmissionId" />
-        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-        <label for="TutorScore">Итоговая оценка</label>
-        <input id="TutorScore" name="TutorScore" type="number" step="0.5" min="0" max="@Model.MaxScore.ToString(System.Globalization.CultureInfo.InvariantCulture)" class="form-control" value="@Model.TutorScore?.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+        <div class="list-card review-total-card">
+            <p><strong>Автоматическая часть:</strong> @Model.AutoScore / @Model.MaxScore</p>
+            <p><strong>Ручная часть:</strong> <span id="manual-score-value">@Model.ManualScore.ToString(System.Globalization.CultureInfo.InvariantCulture)</span></p>
+            <p><strong>Итог репетитора:</strong> <span id="total-score-value">@((Model.TutorScore ?? (Model.AutoScore + Model.ManualScore)).ToString(System.Globalization.CultureInfo.InvariantCulture))</span> / @Model.MaxScore</p>
+        </div>
 
         <label for="TutorFeedback">Комментарий ученику</label>
         <textarea id="TutorFeedback" name="TutorFeedback" class="form-control" rows="5">@Model.TutorFeedback</textarea>
@@ -59,4 +74,28 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const autoScore = @Model.AutoScore.ToString(System.Globalization.CultureInfo.InvariantCulture).Replace(',', '.');
+            const inputs = Array.from(document.querySelectorAll('.review-score-input'));
+            const manualScoreNode = document.getElementById('manual-score-value');
+            const totalScoreNode = document.getElementById('total-score-value');
+
+            function updateTotals() {
+                let manualScore = 0;
+                for (const input of inputs) {
+                    const value = parseFloat(input.value || '0');
+                    if (!Number.isNaN(value)) {
+                        manualScore += value;
+                    }
+                }
+
+                manualScoreNode.textContent = manualScore.toFixed(1).replace('.0', '');
+                totalScoreNode.textContent = (manualScore + autoScore).toFixed(1).replace('.0', '');
+            }
+
+            inputs.forEach(input => input.addEventListener('input', updateTotals));
+            updateTotals();
+        })();
+    </script>
 }

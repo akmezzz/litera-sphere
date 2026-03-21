@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
 namespace TutorPlatform.ViewModels
 {
@@ -40,6 +41,7 @@ namespace TutorPlatform.ViewModels
         public string Label { get; set; }
         public string Email { get; set; }
         public string GradeLabel { get; set; }
+        public List<string> GroupNames { get; set; } = new List<string>();
     }
 
     public class SubmissionSummaryViewModel
@@ -49,6 +51,7 @@ namespace TutorPlatform.ViewModels
         public string TestTitle { get; set; }
         public decimal AutoScore { get; set; }
         public decimal MaxScore { get; set; }
+        public decimal? TutorScore { get; set; }
         public DateTime SubmittedAtUtc { get; set; }
         public bool NeedsManualReview { get; set; }
         public bool IsReviewed { get; set; }
@@ -71,10 +74,12 @@ namespace TutorPlatform.ViewModels
         public string TutorFeedback { get; set; }
         public DateTime? ReviewedAtUtc { get; set; }
         public List<SubmissionAnswerReviewViewModel> Answers { get; set; } = new List<SubmissionAnswerReviewViewModel>();
+        public decimal ManualScore => Answers.Where(answer => answer.CanEditPoints).Sum(answer => answer.AwardedPoints);
     }
 
     public class SubmissionAnswerReviewViewModel
     {
+        public int AnswerId { get; set; }
         public int Order { get; set; }
         public string Prompt { get; set; }
         public string QuestionType { get; set; }
@@ -84,24 +89,56 @@ namespace TutorPlatform.ViewModels
         public decimal MaxPoints { get; set; }
         public decimal AwardedPoints { get; set; }
         public bool IsAutoCorrect { get; set; }
+        public bool CanEditPoints { get; set; }
     }
 
     public class ReviewSubmissionInputModel
     {
         public int SubmissionId { get; set; }
 
-        [Required]
-        [Range(0, 1000)]
-        [Display(Name = "Итоговая оценка")]
-        public decimal TutorScore { get; set; }
-
         [StringLength(2000)]
         [Display(Name = "Комментарий ученику")]
         public string TutorFeedback { get; set; }
+
+        public List<ReviewAnswerInputModel> Answers { get; set; } = new List<ReviewAnswerInputModel>();
+    }
+
+    public class ReviewAnswerInputModel
+    {
+        public int AnswerId { get; set; }
+        public decimal AwardedPoints { get; set; }
+    }
+
+    public class CreateStudentViewModel
+    {
+        [Required]
+        [StringLength(120)]
+        [Display(Name = "Имя ученика")]
+        public string FullName { get; set; }
+
+        [Required]
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; }
+
+        [Required]
+        [StringLength(60, MinimumLength = 6)]
+        [Display(Name = "Временный пароль")]
+        public string Password { get; set; } = "Student123!";
+
+        [Display(Name = "Класс")]
+        public string GradeLabel { get; set; }
+
+        [Display(Name = "Сразу добавить в группы")]
+        public List<int> GroupIds { get; set; } = new List<int>();
+
+        public List<GroupOptionViewModel> AvailableGroups { get; set; } = new List<GroupOptionViewModel>();
     }
 
     public class CreateGroupViewModel
     {
+        public int? GroupId { get; set; }
+
         [Required]
         [StringLength(120)]
         [Display(Name = "Название группы")]
@@ -115,6 +152,9 @@ namespace TutorPlatform.ViewModels
         public List<string> StudentIds { get; set; } = new List<string>();
 
         public List<StudentOptionViewModel> AvailableStudents { get; set; } = new List<StudentOptionViewModel>();
+        public bool IsEditMode => GroupId.HasValue;
+        public string FormTitle => IsEditMode ? "Редактировать группу" : "Создать группу";
+        public string SubmitLabel => IsEditMode ? "Сохранить изменения" : "Сохранить группу";
     }
 
     public class CreateTestViewModel

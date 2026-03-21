@@ -44,23 +44,16 @@ namespace TutorPlatform.Controllers
                 .OrderByDescending(test => test.CreatedAtUtc)
                 .ToListAsync();
 
+            var studentMemberships = await _dbContext.StudentGroupMembers
+                .AsNoTracking()
+                .Include(member => member.StudentGroup)
+                .ToListAsync();
+
             var students = await _dbContext.Users
                 .AsNoTracking()
                 .Where(user => user.PlatformRole == PlatformRoles.Student || string.IsNullOrWhiteSpace(user.PlatformRole))
                 .OrderBy(user => user.FullName)
                 .ThenBy(user => user.Email)
-                .Select(user => new StudentOptionViewModel
-                {
-                    Id = user.Id,
-                    Email = user.Email,
-                    GradeLabel = user.GradeLabel,
-                    Label = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0} | {1}{2}",
-                        string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName,
-                        user.Email,
-                        string.IsNullOrWhiteSpace(user.GradeLabel) ? string.Empty : $" | {user.GradeLabel}")
-                })
                 .ToListAsync();
 
             var submissions = await _dbContext.StudentSubmissions
@@ -75,7 +68,18 @@ namespace TutorPlatform.Controllers
             var viewModel = new TutorDashboardViewModel
             {
                 TutorName = string.IsNullOrWhiteSpace(tutor.FullName) ? tutor.Email : tutor.FullName,
-                Students = students,
+                Students = students.Select(user => new StudentOptionViewModel
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    GradeLabel = user.GradeLabel,
+                    Label = BuildStudentLabel(user.FullName, user.Email, user.GradeLabel),
+                    GroupNames = studentMemberships
+                        .Where(member => member.StudentId == user.Id)
+                        .Select(member => member.StudentGroup.Name)
+                        .OrderBy(name => name)
+                        .ToList()
+                }).ToList(),
                 PendingReviewCount = submissions.Count(submission => submission.NeedsManualReview || !submission.ReviewedAtUtc.HasValue),
                 Groups = groups.Select(group => new TutorGroupCardViewModel
                 {
@@ -105,6 +109,7 @@ namespace TutorPlatform.Controllers
                     TestTitle = submission.LearningTest.Title,
                     AutoScore = submission.AutoScore,
                     MaxScore = submission.MaxScore,
+                    TutorScore = submission.TutorScore,
                     SubmittedAtUtc = submission.SubmittedAtUtc,
                     NeedsManualReview = submission.NeedsManualReview,
                     IsReviewed = submission.ReviewedAtUtc.HasValue
@@ -112,6 +117,63 @@ namespace TutorPlatform.Controllers
             };
 
             return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CreateStudent()
+        {
+            return View(await BuildCreateStudentModelAsync());
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateStudent(CreateStudentViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(await BuildCreateStudentModelAsync(model));
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(model.Email);
+            if (existingUser != null)
+            {
+                ModelState.AddModelError(nameof(model.Email), "Пользователь с таким email уже существует.");
+                return View(await BuildCreateStudentModelAsync(model));
+            }
+
+            var student = new ApplicationUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                EmailConfirmed = true,
+                FullName = model.FullName?.Trim(),
+                PlatformRole = PlatformRoles.Student,
+                GradeLabel = model.GradeLabel?.Trim()
+            };
+
+            var result = await _userManager.CreateAsync(student, model.Password);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+
+                return View(await BuildCreateStudentModelAsync(model));
+            }
+
+            foreach (var groupId in model.GroupIds.Distinct())
+            {
+                _dbContext.StudentGroupMembers.Add(new StudentGroupMember
+                {
+                    StudentGroupId = groupId,
+                    StudentId = student.Id
+                });
+            }
+
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Ученик зарегистрирован и готов к работе.";
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
@@ -134,6 +196,8 @@ namespace TutorPlatform.Controllers
             var tutor = await _userManager.GetUserAsync(User);
             var submission = await _dbContext.StudentSubmissions
                 .Include(item => item.LearningTest)
+                .Include(item => item.Answers)
+                    .ThenInclude(answer => answer.LearningTestQuestion)
                 .FirstOrDefaultAsync(item => item.Id == model.SubmissionId && item.LearningTest.TutorId == tutor.Id);
 
             if (submission == null)
@@ -141,9 +205,30 @@ namespace TutorPlatform.Controllers
                 return NotFound();
             }
 
-            if (model.TutorScore > submission.MaxScore)
+            var inputById = model.Answers.ToDictionary(answer => answer.AnswerId, answer => answer);
+            decimal manualScore = 0;
+
+            foreach (var answer in submission.Answers)
             {
-                ModelState.AddModelError(nameof(model.TutorScore), $"Оценка не может быть больше максимума {submission.MaxScore}.");
+                var isManualQuestion = IsManualQuestion(answer.LearningTestQuestion);
+                if (!isManualQuestion)
+                {
+                    continue;
+                }
+
+                if (!inputById.TryGetValue(answer.Id, out var answerInput))
+                {
+                    continue;
+                }
+
+                if (answerInput.AwardedPoints < 0 || answerInput.AwardedPoints > answer.LearningTestQuestion.MaxPoints)
+                {
+                    ModelState.AddModelError(string.Empty, $"Баллы за задание {answer.LearningTestQuestion.Order} должны быть от 0 до {answer.LearningTestQuestion.MaxPoints}.");
+                    break;
+                }
+
+                answer.AwardedPoints = answerInput.AwardedPoints;
+                manualScore += answer.AwardedPoints;
             }
 
             if (!ModelState.IsValid)
@@ -154,18 +239,26 @@ namespace TutorPlatform.Controllers
                     return NotFound();
                 }
 
-                reviewViewModel.TutorScore = model.TutorScore;
                 reviewViewModel.TutorFeedback = model.TutorFeedback;
+                foreach (var answerViewModel in reviewViewModel.Answers.Where(answer => answer.CanEditPoints))
+                {
+                    if (inputById.TryGetValue(answerViewModel.AnswerId, out var answerInput))
+                    {
+                        answerViewModel.AwardedPoints = answerInput.AwardedPoints;
+                    }
+                }
+
+                reviewViewModel.TutorScore = submission.AutoScore + reviewViewModel.Answers.Where(answer => answer.CanEditPoints).Sum(answer => answer.AwardedPoints);
                 return View(reviewViewModel);
             }
 
-            submission.TutorScore = model.TutorScore;
+            submission.TutorScore = submission.AutoScore + manualScore;
             submission.TutorFeedback = model.TutorFeedback?.Trim();
             submission.ReviewedAtUtc = DateTime.UtcNow;
             submission.NeedsManualReview = false;
 
             await _dbContext.SaveChangesAsync();
-            TempData["StatusMessage"] = "Оценка и комментарий сохранены. Ученик увидит их в своем кабинете.";
+            TempData["StatusMessage"] = "Баллы и комментарий сохранены. Ученик увидит их в своем кабинете.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -173,6 +266,32 @@ namespace TutorPlatform.Controllers
         public async Task<IActionResult> CreateGroup()
         {
             return View(await BuildCreateGroupModelAsync());
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EditGroup(int id)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            var group = await _dbContext.StudentGroups
+                .AsNoTracking()
+                .Where(item => item.Id == id && item.TutorId == tutor.Id)
+                .Include(item => item.Members)
+                .FirstOrDefaultAsync();
+
+            if (group == null)
+            {
+                return NotFound();
+            }
+
+            var model = new CreateGroupViewModel
+            {
+                GroupId = group.Id,
+                Name = group.Name,
+                Description = group.Description,
+                StudentIds = group.Members.Select(member => member.StudentId).ToList()
+            };
+
+            return View("CreateGroup", await BuildCreateGroupModelAsync(model));
         }
 
         [HttpPost]
@@ -185,6 +304,40 @@ namespace TutorPlatform.Controllers
             }
 
             var tutor = await _userManager.GetUserAsync(User);
+            var selectedStudents = model.StudentIds?.Distinct().ToList() ?? new List<string>();
+
+            if (model.GroupId.HasValue)
+            {
+                var existingGroup = await _dbContext.StudentGroups
+                    .Include(group => group.Members)
+                    .FirstOrDefaultAsync(group => group.Id == model.GroupId.Value && group.TutorId == tutor.Id);
+
+                if (existingGroup == null)
+                {
+                    return NotFound();
+                }
+
+                existingGroup.Name = model.Name;
+                existingGroup.Description = model.Description;
+
+                var existingMemberIds = existingGroup.Members.Select(member => member.StudentId).ToList();
+                var membersToRemove = existingGroup.Members.Where(member => !selectedStudents.Contains(member.StudentId)).ToList();
+                _dbContext.StudentGroupMembers.RemoveRange(membersToRemove);
+
+                foreach (var studentId in selectedStudents.Where(studentId => !existingMemberIds.Contains(studentId)))
+                {
+                    _dbContext.StudentGroupMembers.Add(new StudentGroupMember
+                    {
+                        StudentGroupId = existingGroup.Id,
+                        StudentId = studentId
+                    });
+                }
+
+                await _dbContext.SaveChangesAsync();
+                TempData["StatusMessage"] = "Состав группы обновлен.";
+                return RedirectToAction(nameof(Index));
+            }
+
             var group = new StudentGroup
             {
                 Name = model.Name,
@@ -195,7 +348,6 @@ namespace TutorPlatform.Controllers
             _dbContext.StudentGroups.Add(group);
             await _dbContext.SaveChangesAsync();
 
-            var selectedStudents = model.StudentIds?.Distinct().ToList() ?? new List<string>();
             foreach (var studentId in selectedStudents)
             {
                 _dbContext.StudentGroupMembers.Add(new StudentGroupMember
@@ -275,6 +427,24 @@ namespace TutorPlatform.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        private async Task<CreateStudentViewModel> BuildCreateStudentModelAsync(CreateStudentViewModel model = null)
+        {
+            model ??= new CreateStudentViewModel();
+            var tutor = await _userManager.GetUserAsync(User);
+            model.AvailableGroups = await _dbContext.StudentGroups
+                .AsNoTracking()
+                .Where(group => group.TutorId == tutor.Id)
+                .OrderBy(group => group.Name)
+                .Select(group => new GroupOptionViewModel
+                {
+                    Id = group.Id,
+                    Name = group.Name
+                })
+                .ToListAsync();
+
+            return model;
+        }
+
         private async Task<CreateGroupViewModel> BuildCreateGroupModelAsync(CreateGroupViewModel model = null)
         {
             model ??= new CreateGroupViewModel();
@@ -288,12 +458,7 @@ namespace TutorPlatform.Controllers
                     Id = user.Id,
                     Email = user.Email,
                     GradeLabel = user.GradeLabel,
-                    Label = string.Format(
-                        CultureInfo.InvariantCulture,
-                        "{0} | {1}{2}",
-                        string.IsNullOrWhiteSpace(user.FullName) ? user.Email : user.FullName,
-                        user.Email,
-                        string.IsNullOrWhiteSpace(user.GradeLabel) ? string.Empty : $" | {user.GradeLabel}")
+                    Label = BuildStudentLabel(user.FullName, user.Email, user.GradeLabel)
                 })
                 .ToListAsync();
 
@@ -364,6 +529,7 @@ namespace TutorPlatform.Controllers
                     .OrderBy(answer => answer.LearningTestQuestion.Order)
                     .Select(answer => new SubmissionAnswerReviewViewModel
                     {
+                        AnswerId = answer.Id,
                         Order = answer.LearningTestQuestion.Order,
                         Prompt = answer.LearningTestQuestion.Prompt,
                         QuestionType = answer.LearningTestQuestion.QuestionType,
@@ -372,10 +538,29 @@ namespace TutorPlatform.Controllers
                         Explanation = answer.LearningTestQuestion.Explanation,
                         MaxPoints = answer.LearningTestQuestion.MaxPoints,
                         AwardedPoints = answer.AwardedPoints,
-                        IsAutoCorrect = answer.IsAutoCorrect
+                        IsAutoCorrect = answer.IsAutoCorrect,
+                        CanEditPoints = IsManualQuestion(answer.LearningTestQuestion)
                     })
                     .ToList()
             };
+        }
+
+        private static bool IsManualQuestion(LearningTestQuestion question)
+        {
+            return question.QuestionType == "Essay"
+                || question.QuestionType == "AudioPrompt"
+                || question.QuestionType == "OpenText"
+                || string.IsNullOrWhiteSpace(question.CorrectAnswer);
+        }
+
+        private static string BuildStudentLabel(string fullName, string email, string gradeLabel)
+        {
+            return string.Format(
+                CultureInfo.InvariantCulture,
+                "{0} | {1}{2}",
+                string.IsNullOrWhiteSpace(fullName) ? email : fullName,
+                email,
+                string.IsNullOrWhiteSpace(gradeLabel) ? string.Empty : $" | {gradeLabel}");
         }
     }
 }
