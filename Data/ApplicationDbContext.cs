@@ -18,6 +18,13 @@ namespace TutorPlatform.Data
         public DbSet<TestAssignment> TestAssignments { get; set; }
         public DbSet<StudentSubmission> StudentSubmissions { get; set; }
         public DbSet<StudentAnswer> StudentAnswers { get; set; }
+        public DbSet<StudyTip> StudyTips { get; set; }
+        public DbSet<DailyMeme> DailyMemes { get; set; }
+        public DbSet<StudentMemeLike> StudentMemeLikes { get; set; }
+        public DbSet<Lesson> Lessons { get; set; }
+        public DbSet<LessonAssignment> LessonAssignments { get; set; }
+        public DbSet<StudentLessonProgress> StudentLessonProgresses { get; set; }
+        public DbSet<StudentQuestion> StudentQuestions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -44,6 +51,18 @@ namespace TutorPlatform.Data
 
             builder.Entity<StudentSubmission>()
                 .HasIndex(submission => new { submission.LearningTestId, submission.StudentId })
+                .IsUnique();
+
+            builder.Entity<StudentMemeLike>()
+                .HasIndex(item => new { item.DailyMemeId, item.StudentId })
+                .IsUnique();
+
+            builder.Entity<LessonAssignment>()
+                .HasIndex(item => new { item.LessonId, item.StudentGroupId })
+                .IsUnique();
+
+            builder.Entity<StudentLessonProgress>()
+                .HasIndex(item => new { item.LessonAssignmentId, item.StudentId })
                 .IsUnique();
 
             builder.Entity<LearningTestQuestion>()

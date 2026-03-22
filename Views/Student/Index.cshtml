@@ -3,87 +3,298 @@
     ViewData["Title"] = "Кабинет ученика";
 }
 
-<section class="dashboard-header">
-    <div>
-        <span class="eyebrow">Кабинет ученика</span>
-        <h1>@Model.StudentName</h1>
-        <p>@Model.GradeLabel | Группы: @(Model.GroupNames.Any() ? string.Join(", ", Model.GroupNames) : "не назначены")</p>
-    </div>
-</section>
-
-@if (TempData["StatusMessage"] != null)
-{
-    <div class="status-banner">@TempData["StatusMessage"]</div>
-}
-
-<section class="dashboard-grid">
-    <article class="panel">
-        <div class="panel__header">
-            <h2>Назначенные тесты</h2>
-            <span>@Model.AssignedTests.Count</span>
-        </div>
-        @if (Model.AssignedTests.Any())
+<section class="dashboard-hero-grid">
+    <aside class="section-sidebar">
+        <p class="eyebrow">Разделы</p>
+        @foreach (var examSection in Model.Sections)
         {
-            @foreach (var test in Model.AssignedTests)
-            {
-                <div class="list-card">
-                    <div class="badge-row">
-                        <span class="tag">@test.ExamType</span>
-                        <span class="tag">@test.MechanicType</span>
-                        <span class="tag">@test.GroupName</span>
+            <a class="section-square" href="#@(examSection.Key)">
+                <strong>@examSection.Title</strong>
+                <span>@examSection.AccentLabel</span>
+            </a>
+        }
+        <a class="section-square section-square--soft" href="#homework">Домашка</a>
+        <a class="section-square section-square--soft" href="#memes">Мемы</a>
+    </aside>
+
+    <div class="dashboard-main-stack">
+        <section class="dashboard-header dashboard-header--rich">
+            <div>
+                <span class="eyebrow">Личный кабинет</span>
+                <h1>@Model.StudentName</h1>
+                <p>@Model.GradeLabel | Группы: @(Model.GroupNames.Any() ? string.Join(", ", Model.GroupNames) : "не назначены")</p>
+            </div>
+            <div class="hero__actions hero__actions--stacked">
+                <span class="tag">Подготовка: @Model.PreparationMinutes мин.</span>
+                <span class="tag">Пройдено уроков: @Model.CompletedLessonsCount</span>
+                <span class="tag">Сдано работ: @Model.CompletedTestCount</span>
+            </div>
+        </section>
+
+        @if (TempData["StatusMessage"] != null)
+        {
+            <div class="status-banner">@TempData["StatusMessage"]</div>
+        }
+
+        <section class="cards cards--stats">
+            <article class="metric-card">
+                <span>Время подготовки</span>
+                <strong>@Model.PreparationMinutes</strong>
+                <small>примерно минут в системе</small>
+            </article>
+            <article class="metric-card">
+                <span>Уроков</span>
+                <strong>@Model.CompletedLessonsCount</strong>
+                <small>уже отмечены как завершенные</small>
+            </article>
+            <article class="metric-card">
+                <span>Работ</span>
+                <strong>@Model.CompletedTestCount</strong>
+                <small>отправлено на проверку</small>
+            </article>
+            <article class="metric-card">
+                <span>Любимых мемов</span>
+                <strong>@Model.LikedMemesCount</strong>
+                <small>сохранено в кабинете</small>
+            </article>
+        </section>
+
+        <section class="quote-panel" id="quote-day">
+            <div>
+                <span class="eyebrow">Цитата дня</span>
+                <p>@Model.DailyQuote</p>
+            </div>
+            <div class="quote-panel__image" id="cat-day">
+                <img src="@Model.DailyCatImageUrl" alt="Котик дня" />
+            </div>
+        </section>
+
+        @foreach (var examSection in Model.Sections)
+        {
+            <section class="panel panel--section" id="@(examSection.Key)">
+                <div class="panel__header">
+                    <div>
+                        <span class="eyebrow">Учебный раздел</span>
+                        <h2>@examSection.Title</h2>
+                        <p class="muted">@examSection.Description</p>
                     </div>
-                    <h3>@test.Title</h3>
-                    <p class="muted">Заданий: @test.QuestionCount | Таймер: @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
-                    @if (test.AlreadySubmitted)
-                    {
-                        <p class="muted">Работа уже отправлена.</p>
-                    }
-                    else
-                    {
-                        <a class="btn btn-accent" asp-action="TakeTest" asp-route-id="@test.Id">Открыть тест</a>
-                    }
+                    <span class="tag">@examSection.AccentLabel</span>
                 </div>
-            }
+                <div class="section-columns">
+                    <div class="panel panel--nested">
+                        <h3>Пробники и задания</h3>
+                        @if (examSection.FeaturedTests.Any())
+                        {
+                            @foreach (var test in examSection.FeaturedTests)
+                            {
+                                <div class="list-card">
+                                    <div class="badge-row">
+                                        <span class="tag">@test.MechanicType</span>
+                                        @if (test.IsMockExam)
+                                        {
+                                            <span class="tag tag--warning">Пробник</span>
+                                        }
+                                        @if (test.IsCreativeTask)
+                                        {
+                                            <span class="tag">Творчество</span>
+                                        }
+                                    </div>
+                                    <h3>@test.Title</h3>
+                                    <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
+                                    @if (test.AlreadySubmitted)
+                                    {
+                                        <p class="muted">Работа уже отправлена.</p>
+                                    }
+                                    else
+                                    {
+                                        <a class="btn btn-accent" asp-action="TakeTest" asp-route-id="@test.Id">Открыть</a>
+                                    }
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="muted">Пока в этом разделе нет назначенных материалов.</p>
+                        }
+                    </div>
+                    <div class="panel panel--nested">
+                        <h3>Типовые задания по номерам</h3>
+                        <div class="practice-lines">
+                            @foreach (var task in examSection.PracticeTasks.Take(examSection.Title == "ЕГЭ" ? 10 : 8))
+                            {
+                                <div class="practice-line">
+                                    <strong>@task.TaskNumber</strong>
+                                    <span>@task.Label</span>
+                                    <em>@task.TaskCount тренировок</em>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </section>
         }
-        else
-        {
-            <p class="muted">Пока нет назначенных тестов.</p>
-        }
-    </article>
 
-    <article class="panel">
-        <div class="panel__header">
-            <h2>Результаты</h2>
-            <span>@Model.Results.Count</span>
-        </div>
-        @if (Model.Results.Any())
-        {
-            @foreach (var result in Model.Results)
-            {
-                <div class="list-card">
-                    <h3>@result.Title</h3>
-                    <p class="muted">Автопроверка: @result.AutoScore / @result.MaxScore</p>
-                    @if (result.IsReviewed)
-                    {
-                        <p><strong>Оценка репетитора:</strong> @result.TutorScore / @result.MaxScore</p>
-                        <p class="muted">Проверено: @result.ReviewedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        <section class="dashboard-grid">
+            <article class="panel">
+                <div class="panel__header">
+                    <h2>Текущие уроки и конспекты</h2>
+                    <span>@Model.ActiveLessons.Count</span>
+                </div>
+                @foreach (var lesson in Model.ActiveLessons)
+                {
+                    <div class="list-card">
+                        <div class="badge-row">
+                            <span class="tag">@lesson.ExamType</span>
+                            <span class="tag">@lesson.LessonFormat</span>
+                            <span class="tag">@lesson.GroupName</span>
+                        </div>
+                        <h3>@lesson.Title</h3>
+                        <p><strong>@lesson.Theme</strong></p>
+                        <p>@lesson.Notes</p>
+                        <p class="muted">@lesson.Summary</p>
+                        @if (lesson.IsCompleted)
+                        {
+                            <span class="tag tag--success">Пройдено</span>
+                        }
+                        else
+                        {
+                            <form class="inline-form" asp-action="CompleteLesson" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="assignmentId" value="@lesson.AssignmentId" />
+                                <button class="btn btn-ghost" type="submit">Я изучил(а) конспект</button>
+                            </form>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel" id="homework">
+                <div class="panel__header">
+                    <h2>Домашнее задание</h2>
+                    <span>@Model.HomeworkLessons.Count</span>
+                </div>
+                @foreach (var lesson in Model.HomeworkLessons)
+                {
+                    <div class="list-card">
+                        <h3>@lesson.Title</h3>
+                        <p>@lesson.Homework</p>
+                    </div>
+                }
+                @if (!Model.HomeworkLessons.Any())
+                {
+                    <p class="muted">Все текущие домашние задания уже закрыты. Можно перейти к новым пробникам.</p>
+                }
+            </article>
+        </section>
+
+        <section class="dashboard-grid">
+            <article class="panel" id="tips">
+                <div class="panel__header">
+                    <h2>Полезные советы</h2>
+                    <span>@Model.Tips.Count</span>
+                </div>
+                @foreach (var tip in Model.Tips)
+                {
+                    <div class="list-card">
+                        <div class="badge-row">
+                            <span class="tag">@tip.ExamType</span>
+                        </div>
+                        <h3>@tip.Title</h3>
+                        <p>@tip.Description</p>
+                    </div>
+                }
+            </article>
+
+            <article class="panel">
+                <div class="panel__header">
+                    <h2>Результаты и проверка</h2>
+                    <span>@Model.Results.Count</span>
+                </div>
+                @foreach (var result in Model.Results)
+                {
+                    <div class="list-card">
+                        <div class="badge-row">
+                            <span class="tag">@result.ExamType</span>
+                            @if (result.IsReviewed)
+                            {
+                                <span class="tag tag--success">Проверено</span>
+                            }
+                            else if (result.NeedsManualReview)
+                            {
+                                <span class="tag tag--warning">Ждет репетитора</span>
+                            }
+                        </div>
+                        <h3>@result.Title</h3>
+                        <p class="muted">Автоматическая часть: @result.AutoScore / @result.MaxScore</p>
+                        @if (result.TutorScore.HasValue)
+                        {
+                            <p><strong>Итоговый балл:</strong> @result.TutorScore / @result.MaxScore</p>
+                        }
                         @if (!string.IsNullOrWhiteSpace(result.TutorFeedback))
                         {
                             <p><strong>Комментарий:</strong> @result.TutorFeedback</p>
                         }
-                        <span class="tag tag--success">Проверено преподавателем</span>
-                    }
-                    else if (result.NeedsManualReview)
-                    {
-                        <span class="tag tag--warning">Ожидает проверки преподавателя</span>
-                    }
-                    <p class="muted">Отправлено: @result.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+                    </div>
+                }
+            </article>
+        </section>
+
+        <section class="dashboard-grid">
+            <article class="panel">
+                <div class="panel__header">
+                    <h2>Вопросы и пожелания</h2>
+                    <span>@Model.Questions.Count</span>
                 </div>
-            }
-        }
-        else
-        {
-            <p class="muted">Результатов пока нет.</p>
-        }
-    </article>
+                <form class="editor-form" asp-action="SendQuestion" method="post">
+                    @Html.AntiForgeryToken()
+                    <input class="form-control" name="Topic" placeholder="Например: не понял тему про деепричастный оборот" />
+                    <textarea class="form-control" name="Message" rows="4" placeholder="Напиши вопрос, пожелание или то, что вызвало трудность"></textarea>
+                    <button class="btn btn-accent" type="submit">Отправить репетитору</button>
+                </form>
+                @foreach (var question in Model.Questions)
+                {
+                    <div class="list-card">
+                        <h3>@question.Topic</h3>
+                        <p>@question.Message</p>
+                        @if (question.IsAnswered)
+                        {
+                            <p><strong>Ответ:</strong> @question.TutorReply</p>
+                        }
+                        else
+                        {
+                            <span class="tag tag--warning">Ответ еще готовится</span>
+                        }
+                    </div>
+                }
+            </article>
+
+            <article class="panel" id="memes">
+                <div class="panel__header">
+                    <h2>Мемы и котики</h2>
+                    <span>@Model.Memes.Count</span>
+                </div>
+                @foreach (var meme in Model.Memes)
+                {
+                    <div class="meme-card">
+                        <img src="@meme.ImageUrl" alt="@meme.Title" />
+                        <div>
+                            <div class="badge-row">
+                                <span class="tag">@meme.Theme</span>
+                                <span class="tag">Лайков: @meme.LikeCount</span>
+                            </div>
+                            <h3>@meme.Title</h3>
+                            <p>@meme.Caption</p>
+                            <form class="inline-form" asp-action="ToggleMemeLike" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@meme.Id" />
+                                <button class="btn btn-ghost" type="submit">@(meme.IsLikedByCurrentStudent ? "Убрать из любимых" : "Лайкнуть и сохранить")</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </article>
+        </section>
+    </div>
 </section>
+
+

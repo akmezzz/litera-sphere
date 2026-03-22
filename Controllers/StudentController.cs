@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -57,27 +58,155 @@ namespace TutorPlatform.Controllers
                 .OrderBy(name => name)
                 .ToListAsync();
 
+            var lessonAssignments = await _dbContext.LessonAssignments
+                .AsNoTracking()
+                .Where(assignment => assignment.IsVisibleToStudent && assignment.StudentGroup.Members.Any(member => member.StudentId == student.Id))
+                .Include(assignment => assignment.StudentGroup)
+                .Include(assignment => assignment.Lesson)
+                .OrderBy(assignment => assignment.Lesson.DisplayOrder)
+                .ToListAsync();
+
+            var lessonProgress = await _dbContext.StudentLessonProgresses
+                .AsNoTracking()
+                .Where(progress => progress.StudentId == student.Id)
+                .ToListAsync();
+
+            var relevantExamTypes = assignments.Select(assignment => assignment.LearningTest.ExamType)
+                .Concat(lessonAssignments.Select(assignment => assignment.Lesson.ExamType))
+                .Where(examType => !string.IsNullOrWhiteSpace(examType))
+                .Distinct()
+                .ToList();
+
+            if (!relevantExamTypes.Any())
+            {
+                relevantExamTypes = student.GradeLabel != null && student.GradeLabel.Contains("9", StringComparison.OrdinalIgnoreCase)
+                    ? new List<string> { "ОГЭ", "Устное собеседование" }
+                    : new List<string> { "ЕГЭ", "Итоговое сочинение" };
+            }
+
             var submittedIds = submissions.Select(submission => submission.LearningTestId).ToHashSet();
+            var groupedAssignments = assignments
+                .GroupBy(assignment => assignment.LearningTestId)
+                .Select(group => group.First())
+                .ToList();
+
+            var assignedTests = groupedAssignments.Select(assignment => new StudentAssignedTestViewModel
+            {
+                Id = assignment.LearningTest.Id,
+                Title = assignment.LearningTest.Title,
+                ExamType = assignment.LearningTest.ExamType,
+                MechanicType = assignment.LearningTest.MechanicType,
+                GroupName = assignment.StudentGroup.Name,
+                QuestionCount = assignment.LearningTest.Questions.Count,
+                TimeLimitMinutes = assignment.LearningTest.TimeLimitMinutes,
+                AlreadySubmitted = submittedIds.Contains(assignment.LearningTestId),
+                IsMockExam = assignment.LearningTest.IsMockExam,
+                IsCreativeTask = assignment.LearningTest.MechanicType == "Творческое задание",
+                ModuleName = assignment.LearningTest.ModuleName
+            }).ToList();
+
+            var lessonCards = lessonAssignments.Select(assignment =>
+            {
+                var progress = lessonProgress.FirstOrDefault(item => item.LessonAssignmentId == assignment.Id);
+                return new LessonCardViewModel
+                {
+                    AssignmentId = assignment.Id,
+                    LessonId = assignment.LessonId,
+                    ExamType = assignment.Lesson.ExamType,
+                    Title = assignment.Lesson.Title,
+                    Theme = assignment.Lesson.Theme,
+                    Summary = assignment.Lesson.Summary,
+                    Notes = assignment.Lesson.Notes,
+                    Homework = assignment.Lesson.Homework,
+                    LessonFormat = assignment.Lesson.LessonFormat,
+                    GroupName = assignment.StudentGroup.Name,
+                    IsVisibleToStudent = assignment.IsVisibleToStudent,
+                    IsCompleted = progress?.IsCompleted ?? false,
+                    CompletedAtUtc = progress?.CompletedAtUtc
+                };
+            }).ToList();
+
+            var sections = relevantExamTypes.Select(examType => new DashboardSectionViewModel
+            {
+                Key = SanitizeKey(examType),
+                Title = examType,
+                Description = PlatformCatalog.GetExamDescription(examType),
+                AccentLabel = examType == "ЕГЭ" ? "3:30" : examType == "ОГЭ" ? "3:55" : "Трек",
+                MockExamCount = assignedTests.Count(test => test.ExamType == examType && test.IsMockExam),
+                PracticeCount = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType).Sum(item => item.TaskCount),
+                LessonCount = lessonCards.Count(lesson => lesson.ExamType == examType),
+                PracticeTasks = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType)
+                    .Take(examType == "ЕГЭ" ? 26 : 12)
+                    .Select(item => new PracticeTaskLineViewModel { TaskNumber = item.TaskNumber, Label = item.Label, TaskCount = item.TaskCount })
+                    .ToList(),
+                FeaturedTests = assignedTests.Where(test => test.ExamType == examType).Take(6).ToList()
+            }).ToList();
+
+            var tips = await _dbContext.StudyTips
+                .AsNoTracking()
+                .Where(tip => tip.ExamType == "Общее" || relevantExamTypes.Contains(tip.ExamType) || (tip.ExamType == "ОГЭ" && relevantExamTypes.Contains("Устное собеседование")))
+                .OrderBy(tip => tip.DisplayOrder)
+                .Select(tip => new StudyTipViewModel { Id = tip.Id, ExamType = tip.ExamType, Title = tip.Title, Description = tip.Description })
+                .ToListAsync();
+
+            var memeLikes = await _dbContext.StudentMemeLikes.AsNoTracking().Where(item => item.StudentId == student.Id).ToListAsync();
+            var memes = await _dbContext.DailyMemes.AsNoTracking().OrderBy(item => item.DisplayOrder).Take(3).ToListAsync();
+            var memeIds = memes.Select(meme => meme.Id).ToList();
+            var likeCounts = await _dbContext.StudentMemeLikes.AsNoTracking()
+                .Where(item => memeIds.Contains(item.DailyMemeId))
+                .GroupBy(item => item.DailyMemeId)
+                .Select(group => new { DailyMemeId = group.Key, Count = group.Count() })
+                .ToListAsync();
+
+            var questions = await _dbContext.StudentQuestions.AsNoTracking()
+                .Where(question => question.StudentId == student.Id)
+                .OrderByDescending(question => question.CreatedAtUtc)
+                .Select(question => new StudentQuestionViewModel
+                {
+                    Id = question.Id,
+                    StudentName = string.IsNullOrWhiteSpace(student.FullName) ? student.Email : student.FullName,
+                    Topic = question.Topic,
+                    Message = question.Message,
+                    TutorReply = question.TutorReply,
+                    CreatedAtUtc = question.CreatedAtUtc,
+                    RepliedAtUtc = question.RepliedAtUtc
+                }).ToListAsync();
+
+            var preparationMinutes = submissions.Sum(submission => submission.LearningTest.TimeLimitMinutes ?? 35)
+                + lessonCards.Count(lesson => lesson.IsCompleted) * 25
+                + lessonCards.Count(lesson => !lesson.IsCompleted) * 10;
 
             var viewModel = new StudentDashboardViewModel
             {
                 StudentName = string.IsNullOrWhiteSpace(student.FullName) ? student.Email : student.FullName,
                 GradeLabel = string.IsNullOrWhiteSpace(student.GradeLabel) ? "класс не указан" : student.GradeLabel,
                 GroupNames = groups,
-                AssignedTests = assignments.Select(assignment => new StudentAssignedTestViewModel
+                DailyQuote = PlatformCatalog.GetDailyQuote(DateTime.Today),
+                DailyCatImageUrl = $"https://cataas.com/cat?width=720&height=400&seed=litera-{DateTime.Today:yyyyMMdd}",
+                PreparationMinutes = preparationMinutes,
+                CompletedLessonsCount = lessonCards.Count(lesson => lesson.IsCompleted),
+                CompletedTestCount = submissions.Count,
+                LikedMemesCount = memeLikes.Count,
+                Sections = sections,
+                AssignedTests = assignedTests,
+                ActiveLessons = lessonCards,
+                HomeworkLessons = lessonCards.Where(lesson => !lesson.IsCompleted).ToList(),
+                Tips = tips,
+                Memes = memes.Select(meme => new MemeCardViewModel
                 {
-                    Id = assignment.LearningTest.Id,
-                    Title = assignment.LearningTest.Title,
-                    ExamType = assignment.LearningTest.ExamType,
-                    MechanicType = assignment.LearningTest.MechanicType,
-                    GroupName = assignment.StudentGroup.Name,
-                    QuestionCount = assignment.LearningTest.Questions.Count,
-                    TimeLimitMinutes = assignment.LearningTest.TimeLimitMinutes,
-                    AlreadySubmitted = submittedIds.Contains(assignment.LearningTestId)
+                    Id = meme.Id,
+                    Title = meme.Title,
+                    Caption = meme.Caption,
+                    Theme = meme.Theme,
+                    ImageUrl = meme.ImageUrl,
+                    LikeCount = likeCounts.FirstOrDefault(item => item.DailyMemeId == meme.Id)?.Count ?? 0,
+                    IsLikedByCurrentStudent = memeLikes.Any(item => item.DailyMemeId == meme.Id)
                 }).ToList(),
+                Questions = questions,
                 Results = submissions.Select(submission => new StudentResultViewModel
                 {
                     Title = submission.LearningTest.Title,
+                    ExamType = submission.LearningTest.ExamType,
                     AutoScore = submission.AutoScore,
                     MaxScore = submission.MaxScore,
                     TutorScore = submission.TutorScore,
@@ -90,6 +219,90 @@ namespace TutorPlatform.Controllers
             };
 
             return View(viewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleMemeLike(int id)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            var existingLike = await _dbContext.StudentMemeLikes.FirstOrDefaultAsync(item => item.DailyMemeId == id && item.StudentId == student.Id);
+            if (existingLike == null)
+            {
+                _dbContext.StudentMemeLikes.Add(new StudentMemeLike { DailyMemeId = id, StudentId = student.Id, LikedAtUtc = DateTime.UtcNow });
+            }
+            else
+            {
+                _dbContext.StudentMemeLikes.Remove(existingLike);
+            }
+
+            await _dbContext.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CompleteLesson(int assignmentId)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            var assignment = await _dbContext.LessonAssignments
+                .Include(item => item.StudentGroup)
+                    .ThenInclude(group => group.Members)
+                .FirstOrDefaultAsync(item => item.Id == assignmentId && item.IsVisibleToStudent);
+            if (assignment == null || !assignment.StudentGroup.Members.Any(member => member.StudentId == student.Id))
+            {
+                return NotFound();
+            }
+
+            var progress = await _dbContext.StudentLessonProgresses.FirstOrDefaultAsync(item => item.LessonAssignmentId == assignmentId && item.StudentId == student.Id);
+            if (progress == null)
+            {
+                progress = new StudentLessonProgress { LessonAssignmentId = assignmentId, StudentId = student.Id, OpenedAtUtc = DateTime.UtcNow };
+                _dbContext.StudentLessonProgresses.Add(progress);
+            }
+
+            progress.IsCompleted = true;
+            progress.CompletedAtUtc = DateTime.UtcNow;
+            progress.OpenedAtUtc ??= DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Урок отмечен как пройденный, а конспект сохранен в кабинете.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendQuestion(StudentQuestionInputModel model)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            if (!ModelState.IsValid)
+            {
+                TempData["StatusMessage"] = "Не удалось отправить вопрос. Проверь тему и текст сообщения.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var tutorId = await _dbContext.StudentGroupMembers
+                .Where(member => member.StudentId == student.Id)
+                .Select(member => member.StudentGroup.TutorId)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrWhiteSpace(tutorId))
+            {
+                TempData["StatusMessage"] = "Сначала ученика нужно прикрепить к группе репетитора.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            _dbContext.StudentQuestions.Add(new StudentQuestion
+            {
+                StudentId = student.Id,
+                TutorId = tutorId,
+                Topic = model.Topic?.Trim(),
+                Message = model.Message?.Trim(),
+                CreatedAtUtc = DateTime.UtcNow
+            });
+
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Вопрос отправлен репетитору.";
+            return RedirectToAction(nameof(Index));
         }
 
         [HttpGet]
@@ -196,11 +409,7 @@ namespace TutorPlatform.Controllers
 
                 if (!isEssayLike)
                 {
-                    isAutoCorrect = string.Equals(
-                        submittedValue,
-                        question.CorrectAnswer?.Trim(),
-                        StringComparison.OrdinalIgnoreCase);
-
+                    isAutoCorrect = string.Equals(submittedValue, question.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase);
                     if (isAutoCorrect)
                     {
                         awardedPoints = question.MaxPoints;
@@ -228,13 +437,13 @@ namespace TutorPlatform.Controllers
             _dbContext.StudentSubmissions.Add(submission);
             await _dbContext.SaveChangesAsync();
 
-            TempData["StatusMessage"] = string.Format(
-                CultureInfo.InvariantCulture,
-                "Работа отправлена. Автоматический результат: {0}/{1}.",
-                submission.AutoScore,
-                submission.MaxScore);
-
+            TempData["StatusMessage"] = string.Format(CultureInfo.InvariantCulture, "Работа отправлена. Автоматический результат: {0}/{1}.", submission.AutoScore, submission.MaxScore);
             return RedirectToAction(nameof(Index));
+        }
+
+        private static string SanitizeKey(string value)
+        {
+            return (value ?? string.Empty).ToLowerInvariant().Replace(" ", "-");
         }
     }
 }

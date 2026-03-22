@@ -1,0 +1,69 @@
+@model TutorPlatform.ViewModels.CreateCreativeTaskViewModel
+@{
+    ViewData["Title"] = "Творческое задание";
+}
+
+<section class="form-shell form-shell--wide">
+    <span class="eyebrow">Творческий цех</span>
+    <h1>Создать творческое задание</h1>
+    <p class="muted">Подойдет для комментария, собственной позиции, литературного диалога, анализа тропов и игровых форм объяснения правил.</p>
+
+    <form class="editor-form" asp-action="CreateCreativeTask" method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="form-grid">
+            <div>
+                <label asp-for="ExamType"></label>
+                <select asp-for="ExamType" asp-items="new Microsoft.AspNetCore.Mvc.Rendering.SelectList(Model.AvailableExamTypes)" class="form-control"></select>
+            </div>
+            <div>
+                <label asp-for="Title"></label>
+                <input asp-for="Title" class="form-control" />
+            </div>
+            <div>
+                <label asp-for="Theme"></label>
+                <input asp-for="Theme" class="form-control" />
+            </div>
+            <div>
+                <label asp-for="TimeLimitMinutes"></label>
+                <input asp-for="TimeLimitMinutes" class="form-control" />
+            </div>
+            <div>
+                <label asp-for="MaxPoints"></label>
+                <input asp-for="MaxPoints" class="form-control" />
+            </div>
+        </div>
+
+        <div>
+            <label asp-for="Prompt"></label>
+            <textarea asp-for="Prompt" class="form-control" rows="6"></textarea>
+        </div>
+
+        <div>
+            <label asp-for="Explanation"></label>
+            <textarea asp-for="Explanation" class="form-control" rows="4"></textarea>
+        </div>
+
+        <div>
+            <label asp-for="AssignedGroupIds"></label>
+            <div class="options-list">
+                @foreach (var group in Model.AvailableGroups)
+                {
+                    <label class="option-line">
+                        <input type="checkbox" name="AssignedGroupIds" value="@group.Id" @(Model.AssignedGroupIds.Contains(group.Id) ? "checked" : null) />
+                        <span>@group.Name</span>
+                    </label>
+                }
+            </div>
+        </div>
+
+        <div class="hero__actions">
+            <button class="btn btn-accent" type="submit">Сохранить творческое задание</button>
+            <a class="btn btn-ghost" asp-action="Index">Вернуться в кабинет</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

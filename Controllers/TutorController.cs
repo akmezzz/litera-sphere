@@ -76,7 +76,8 @@ namespace TutorPlatform.Controllers
                     TutorScore = submission.TutorScore,
                     SubmittedAtUtc = submission.SubmittedAtUtc,
                     NeedsManualReview = submission.NeedsManualReview,
-                    IsReviewed = submission.ReviewedAtUtc.HasValue
+                    IsReviewed = submission.ReviewedAtUtc.HasValue,
+                    ExamType = submission.LearningTest.ExamType
                 }).ToList()
             });
         }
@@ -96,7 +97,15 @@ namespace TutorPlatform.Controllers
                 return View(await BuildCreateStudentModelAsync(model));
             }
 
-            var student = new ApplicationUser { UserName = model.Email, Email = model.Email, EmailConfirmed = true, FullName = model.FullName?.Trim(), PlatformRole = PlatformRoles.Student, GradeLabel = model.GradeLabel?.Trim() };
+            var student = new ApplicationUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                EmailConfirmed = true,
+                FullName = model.FullName?.Trim(),
+                PlatformRole = PlatformRoles.Student,
+                GradeLabel = model.GradeLabel?.Trim()
+            };
             var result = await _userManager.CreateAsync(student, model.Password);
             if (!result.Succeeded)
             {
@@ -315,21 +324,165 @@ namespace TutorPlatform.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [HttpGet]
+        public async Task<IActionResult> CreateCreativeTask() => View(await BuildCreateCreativeTaskModelAsync());
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateCreativeTask(CreateCreativeTaskViewModel model)
+        {
+            if (!ModelState.IsValid) return View(await BuildCreateCreativeTaskModelAsync(model));
+            var tutor = await _userManager.GetUserAsync(User);
+            var test = new LearningTest
+            {
+                Title = model.Title,
+                ExamType = model.ExamType,
+                MechanicType = "Творческое задание",
+                ModuleName = "Творческий цех",
+                Description = model.Theme,
+                IsPublished = true,
+                TutorId = tutor.Id,
+                CreatedAtUtc = DateTime.UtcNow,
+                TimeLimitMinutes = model.TimeLimitMinutes,
+                Questions = new List<LearningTestQuestion>
+                {
+                    new LearningTestQuestion
+                    {
+                        Order = 1,
+                        Prompt = model.Prompt,
+                        QuestionType = "Essay",
+                        Explanation = model.Explanation,
+                        MaxPoints = model.MaxPoints
+                    }
+                }
+            };
+
+            _dbContext.LearningTests.Add(test);
+            await _dbContext.SaveChangesAsync();
+            foreach (var groupId in model.AssignedGroupIds.Distinct())
+            {
+                _dbContext.TestAssignments.Add(new TestAssignment { LearningTestId = test.Id, StudentGroupId = groupId });
+            }
+
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Творческое задание создано и назначено ученикам.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleLessonVisibility(int assignmentId)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            var assignment = await _dbContext.LessonAssignments.Include(item => item.StudentGroup).FirstOrDefaultAsync(item => item.Id == assignmentId && item.StudentGroup.TutorId == tutor.Id);
+            if (assignment == null) return NotFound();
+            assignment.IsVisibleToStudent = !assignment.IsVisibleToStudent;
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = assignment.IsVisibleToStudent ? "Урок снова виден ученикам." : "Урок скрыт из кабинетов учеников.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ReplyToQuestion(ReplyStudentQuestionInputModel model)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            if (!ModelState.IsValid)
+            {
+                TempData["StatusMessage"] = "Не удалось сохранить ответ ученику.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var question = await _dbContext.StudentQuestions.FirstOrDefaultAsync(item => item.Id == model.QuestionId && item.TutorId == tutor.Id);
+            if (question == null) return NotFound();
+            question.TutorReply = model.TutorReply?.Trim();
+            question.RepliedAtUtc = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            TempData["StatusMessage"] = "Ответ ученику сохранен.";
+            return RedirectToAction(nameof(Index));
+        }
+
         private async Task<TutorDashboardViewModel> BuildTutorDashboardAsync(string tutorId, string tutorFullName, string tutorEmail)
         {
             var groups = await _dbContext.StudentGroups.AsNoTracking().Where(group => group.TutorId == tutorId).Include(group => group.Members).ThenInclude(member => member.Student).OrderBy(group => group.Name).ToListAsync();
-            var tests = await _dbContext.LearningTests.AsNoTracking().Where(test => test.TutorId == tutorId).Include(test => test.Assignments).Include(test => test.Submissions).OrderByDescending(test => test.CreatedAtUtc).ToListAsync();
+            var tests = await _dbContext.LearningTests.AsNoTracking().Where(test => test.TutorId == tutorId).Include(test => test.Assignments).Include(test => test.Submissions).Include(test => test.Questions).OrderByDescending(test => test.CreatedAtUtc).ToListAsync();
             var students = await BuildStudentCardsAsync(tutorId, null);
-            var submissions = await _dbContext.StudentSubmissions.AsNoTracking().Where(submission => submission.LearningTest.TutorId == tutorId).Include(submission => submission.Student).Include(submission => submission.LearningTest).OrderByDescending(submission => submission.SubmittedAtUtc).Take(8).ToListAsync();
+            var submissions = await _dbContext.StudentSubmissions.AsNoTracking().Where(submission => submission.LearningTest.TutorId == tutorId).Include(submission => submission.Student).Include(submission => submission.LearningTest).OrderByDescending(submission => submission.SubmittedAtUtc).Take(12).ToListAsync();
+            var lessonAssignments = await _dbContext.LessonAssignments.AsNoTracking().Where(item => item.StudentGroup.TutorId == tutorId).Include(item => item.StudentGroup).Include(item => item.Lesson).OrderBy(item => item.Lesson.DisplayOrder).ToListAsync();
+            var lessonProgress = await _dbContext.StudentLessonProgresses.AsNoTracking().ToListAsync();
+            var tips = await _dbContext.StudyTips.AsNoTracking().OrderBy(item => item.DisplayOrder).ToListAsync();
+            var memes = await _dbContext.DailyMemes.AsNoTracking().OrderBy(item => item.DisplayOrder).Take(3).ToListAsync();
+            var memeIds = memes.Select(item => item.Id).ToList();
+            var likeCounts = await _dbContext.StudentMemeLikes.AsNoTracking().Where(item => memeIds.Contains(item.DailyMemeId)).GroupBy(item => item.DailyMemeId).Select(group => new { DailyMemeId = group.Key, Count = group.Count() }).ToListAsync();
+            var questions = await _dbContext.StudentQuestions.AsNoTracking().Where(item => item.TutorId == tutorId).Include(item => item.Student).OrderByDescending(item => item.CreatedAtUtc).Take(8).ToListAsync();
+
+            var sectionExamTypes = new[] { "ЕГЭ", "ОГЭ", "Итоговое сочинение", "Устное собеседование" };
+            var sections = sectionExamTypes.Select(examType => new DashboardSectionViewModel
+            {
+                Key = SanitizeKey(examType),
+                Title = examType,
+                Description = PlatformCatalog.GetExamDescription(examType),
+                AccentLabel = examType == "ЕГЭ" ? "3:30" : examType == "ОГЭ" ? "3:55" : "Трек",
+                MockExamCount = tests.Count(test => test.ExamType == examType && test.IsMockExam),
+                PracticeCount = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType).Sum(item => item.TaskCount),
+                LessonCount = lessonAssignments.Count(item => item.Lesson.ExamType == examType),
+                PracticeTasks = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType)
+                    .Take(examType == "ЕГЭ" ? 26 : 12)
+                    .Select(item => new PracticeTaskLineViewModel { TaskNumber = item.TaskNumber, Label = item.Label, TaskCount = item.TaskCount })
+                    .ToList(),
+                FeaturedTests = tests.Where(test => test.ExamType == examType).Take(6).Select(test => new StudentAssignedTestViewModel
+                {
+                    Id = test.Id,
+                    Title = test.Title,
+                    ExamType = test.ExamType,
+                    MechanicType = test.MechanicType,
+                    GroupName = test.Assignments.Count == 0 ? "без группы" : $"Групп: {test.Assignments.Count}",
+                    QuestionCount = test.Questions.Count,
+                    TimeLimitMinutes = test.TimeLimitMinutes,
+                    AlreadySubmitted = false,
+                    IsMockExam = test.IsMockExam,
+                    IsCreativeTask = test.MechanicType == "Творческое задание",
+                    ModuleName = test.ModuleName
+                }).ToList()
+            }).ToList();
 
             return new TutorDashboardViewModel
             {
                 TutorName = string.IsNullOrWhiteSpace(tutorFullName) ? tutorEmail : tutorFullName,
-                Students = students.Select(student => new StudentOptionViewModel { Id = student.Id, Email = student.Email, GradeLabel = student.GradeLabel, Label = BuildStudentLabel(student.FullName, student.Email, student.GradeLabel), GroupNames = student.GroupNames }).ToList(),
                 PendingReviewCount = submissions.Count(submission => submission.NeedsManualReview || !submission.ReviewedAtUtc.HasValue),
+                TotalStudentsCount = students.Count,
+                TotalGroupsCount = groups.Count,
+                TotalLessonsCount = lessonAssignments.Count,
+                TotalCreativeTaskCount = tests.Count(test => test.MechanicType == "Творческое задание"),
+                DailyQuote = PlatformCatalog.GetDailyQuote(DateTime.Today),
+                DailyCatImageUrl = $"https://cataas.com/cat?width=720&height=400&seed=tutor-{DateTime.Today:yyyyMMdd}",
+                Sections = sections,
+                Students = students.Select(student => new StudentOptionViewModel { Id = student.Id, Email = student.Email, GradeLabel = student.GradeLabel, Label = BuildStudentLabel(student.FullName, student.Email, student.GradeLabel), GroupNames = student.GroupNames }).ToList(),
                 Groups = groups.Select(group => new TutorGroupCardViewModel { Id = group.Id, Name = group.Name, Description = group.Description, StudentNames = group.Members.Select(member => string.IsNullOrWhiteSpace(member.Student.FullName) ? member.Student.Email : member.Student.FullName).OrderBy(name => name).ToList() }).ToList(),
                 Tests = tests.Select(test => new TutorTestCardViewModel { Id = test.Id, Title = test.Title, ExamType = test.ExamType, MechanicType = test.MechanicType, ModuleName = test.ModuleName, IsPublished = test.IsPublished, GroupCount = test.Assignments.Count, SubmissionCount = test.Submissions.Count }).ToList(),
-                RecentSubmissions = submissions.Select(submission => new SubmissionSummaryViewModel { Id = submission.Id, StudentName = string.IsNullOrWhiteSpace(submission.Student.FullName) ? submission.Student.Email : submission.Student.FullName, TestTitle = submission.LearningTest.Title, AutoScore = submission.AutoScore, MaxScore = submission.MaxScore, TutorScore = submission.TutorScore, SubmittedAtUtc = submission.SubmittedAtUtc, NeedsManualReview = submission.NeedsManualReview, IsReviewed = submission.ReviewedAtUtc.HasValue }).ToList()
+                RecentSubmissions = submissions.Select(submission => new SubmissionSummaryViewModel { Id = submission.Id, StudentName = string.IsNullOrWhiteSpace(submission.Student.FullName) ? submission.Student.Email : submission.Student.FullName, TestTitle = submission.LearningTest.Title, AutoScore = submission.AutoScore, MaxScore = submission.MaxScore, TutorScore = submission.TutorScore, SubmittedAtUtc = submission.SubmittedAtUtc, NeedsManualReview = submission.NeedsManualReview, IsReviewed = submission.ReviewedAtUtc.HasValue, ExamType = submission.LearningTest.ExamType }).ToList(),
+                Lessons = lessonAssignments.Select(assignment =>
+                {
+                    var completedCount = lessonProgress.Count(item => item.LessonAssignmentId == assignment.Id && item.IsCompleted);
+                    return new LessonCardViewModel
+                    {
+                        AssignmentId = assignment.Id,
+                        LessonId = assignment.LessonId,
+                        ExamType = assignment.Lesson.ExamType,
+                        Title = assignment.Lesson.Title,
+                        Theme = assignment.Lesson.Theme,
+                        Notes = assignment.Lesson.Notes,
+                        Homework = assignment.Lesson.Homework,
+                        LessonFormat = assignment.Lesson.LessonFormat,
+                        GroupName = assignment.StudentGroup.Name,
+                        IsVisibleToStudent = assignment.IsVisibleToStudent,
+                        Summary = $"{assignment.Lesson.Summary} Завершили: {completedCount} ученик(а)."
+                    };
+                }).ToList(),
+                Tips = tips.Select(tip => new StudyTipViewModel { Id = tip.Id, ExamType = tip.ExamType, Title = tip.Title, Description = tip.Description }).ToList(),
+                Memes = memes.Select(meme => new MemeCardViewModel { Id = meme.Id, Title = meme.Title, Caption = meme.Caption, Theme = meme.Theme, ImageUrl = meme.ImageUrl, LikeCount = likeCounts.FirstOrDefault(item => item.DailyMemeId == meme.Id)?.Count ?? 0 }).ToList(),
+                StudentQuestions = questions.Select(question => new StudentQuestionViewModel { Id = question.Id, StudentName = string.IsNullOrWhiteSpace(question.Student.FullName) ? question.Student.Email : question.Student.FullName, Topic = question.Topic, Message = question.Message, TutorReply = question.TutorReply, CreatedAtUtc = question.CreatedAtUtc, RepliedAtUtc = question.RepliedAtUtc }).ToList(),
+                CreativeIdeas = BuildCreativeIdeas()
             };
         }
 
@@ -395,6 +548,15 @@ namespace TutorPlatform.Controllers
             return model;
         }
 
+        private async Task<CreateCreativeTaskViewModel> BuildCreateCreativeTaskModelAsync(CreateCreativeTaskViewModel model = null)
+        {
+            model ??= new CreateCreativeTaskViewModel();
+            var tutor = await _userManager.GetUserAsync(User);
+            model.AvailableGroups = await _dbContext.StudentGroups.AsNoTracking().Where(group => group.TutorId == tutor.Id).OrderBy(group => group.Name).Select(group => new GroupOptionViewModel { Id = group.Id, Name = group.Name }).ToListAsync();
+            model.AvailableExamTypes = PlatformCatalog.ExamTypes.Where(item => item != "Произвольный модуль").ToList();
+            return model;
+        }
+
         private async Task<ReviewSubmissionViewModel> BuildReviewSubmissionViewModelAsync(int submissionId, string tutorId)
         {
             var submission = await _dbContext.StudentSubmissions.AsNoTracking().Where(item => item.Id == submissionId && item.LearningTest.TutorId == tutorId).Include(item => item.Student).Include(item => item.LearningTest).Include(item => item.Answers).ThenInclude(answer => answer.LearningTestQuestion).FirstOrDefaultAsync();
@@ -433,6 +595,17 @@ namespace TutorPlatform.Controllers
             };
         }
 
+        private static List<CreativeIdeaViewModel> BuildCreativeIdeas()
+        {
+            return new List<CreativeIdeaViewModel>
+            {
+                new CreativeIdeaViewModel { ExamType = "ЕГЭ", Title = "Проблема искренних чувств", Prompt = "Напиши два аргумента и объясни связь между ними на тему спада искренних чувств в современном времени." },
+                new CreativeIdeaViewModel { ExamType = "ЕГЭ", Title = "Проблема ревности", Prompt = "Собери комментарий к проблеме ревности: позиция автора, два примера, связь и собственный вывод." },
+                new CreativeIdeaViewModel { ExamType = "ОГЭ", Title = "Литературный диалог", Prompt = "Пусть герой литературы объяснит свой поступок и тем самым раскроет правило русского языка или нравственный выбор." },
+                new CreativeIdeaViewModel { ExamType = "ОГЭ", Title = "Песни и тропы", Prompt = "Объясни на строках песни, где находятся эпитет, гипербола, литота и метафора, а затем придумай свои примеры." }
+            };
+        }
+
         private static bool IsManualQuestion(LearningTestQuestion question)
         {
             return question.QuestionType == "Essay" || question.QuestionType == "AudioPrompt" || question.QuestionType == "OpenText" || string.IsNullOrWhiteSpace(question.CorrectAnswer);
@@ -442,5 +615,11 @@ namespace TutorPlatform.Controllers
         {
             return string.Format(CultureInfo.InvariantCulture, "{0} | {1}{2}", string.IsNullOrWhiteSpace(fullName) ? email : fullName, email, string.IsNullOrWhiteSpace(gradeLabel) ? string.Empty : $" | {gradeLabel}");
         }
+
+        private static string SanitizeKey(string value)
+        {
+            return (value ?? string.Empty).ToLowerInvariant().Replace(" ", "-");
+        }
     }
 }
+

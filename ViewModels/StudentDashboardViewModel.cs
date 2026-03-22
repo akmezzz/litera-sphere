@@ -8,9 +8,21 @@ namespace TutorPlatform.ViewModels
     {
         public string StudentName { get; set; }
         public string GradeLabel { get; set; }
+        public string DailyQuote { get; set; }
+        public string DailyCatImageUrl { get; set; }
+        public int PreparationMinutes { get; set; }
+        public int CompletedLessonsCount { get; set; }
+        public int CompletedTestCount { get; set; }
+        public int LikedMemesCount { get; set; }
         public List<string> GroupNames { get; set; } = new List<string>();
+        public List<DashboardSectionViewModel> Sections { get; set; } = new List<DashboardSectionViewModel>();
         public List<StudentAssignedTestViewModel> AssignedTests { get; set; } = new List<StudentAssignedTestViewModel>();
         public List<StudentResultViewModel> Results { get; set; } = new List<StudentResultViewModel>();
+        public List<LessonCardViewModel> ActiveLessons { get; set; } = new List<LessonCardViewModel>();
+        public List<LessonCardViewModel> HomeworkLessons { get; set; } = new List<LessonCardViewModel>();
+        public List<StudyTipViewModel> Tips { get; set; } = new List<StudyTipViewModel>();
+        public List<MemeCardViewModel> Memes { get; set; } = new List<MemeCardViewModel>();
+        public List<StudentQuestionViewModel> Questions { get; set; } = new List<StudentQuestionViewModel>();
     }
 
     public class StudentAssignedTestViewModel
@@ -23,11 +35,15 @@ namespace TutorPlatform.ViewModels
         public int QuestionCount { get; set; }
         public int? TimeLimitMinutes { get; set; }
         public bool AlreadySubmitted { get; set; }
+        public bool IsMockExam { get; set; }
+        public bool IsCreativeTask { get; set; }
+        public string ModuleName { get; set; }
     }
 
     public class StudentResultViewModel
     {
         public string Title { get; set; }
+        public string ExamType { get; set; }
         public decimal AutoScore { get; set; }
         public decimal MaxScore { get; set; }
         public decimal? TutorScore { get; set; }
@@ -72,5 +88,18 @@ namespace TutorPlatform.ViewModels
 
         [Display(Name = "Ответ")]
         public string SubmittedValue { get; set; }
+    }
+
+    public class StudentQuestionInputModel
+    {
+        [Required]
+        [StringLength(120)]
+        [Display(Name = "Тема")]
+        public string Topic { get; set; }
+
+        [Required]
+        [StringLength(2000)]
+        [Display(Name = "Вопрос или пожелание")]
+        public string Message { get; set; }
     }
 }

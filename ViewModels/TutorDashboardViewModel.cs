@@ -9,10 +9,97 @@ namespace TutorPlatform.ViewModels
     {
         public string TutorName { get; set; }
         public int PendingReviewCount { get; set; }
+        public int TotalStudentsCount { get; set; }
+        public int TotalGroupsCount { get; set; }
+        public int TotalLessonsCount { get; set; }
+        public int TotalCreativeTaskCount { get; set; }
+        public string DailyQuote { get; set; }
+        public string DailyCatImageUrl { get; set; }
+        public List<DashboardSectionViewModel> Sections { get; set; } = new List<DashboardSectionViewModel>();
         public List<TutorGroupCardViewModel> Groups { get; set; } = new List<TutorGroupCardViewModel>();
         public List<TutorTestCardViewModel> Tests { get; set; } = new List<TutorTestCardViewModel>();
         public List<StudentOptionViewModel> Students { get; set; } = new List<StudentOptionViewModel>();
         public List<SubmissionSummaryViewModel> RecentSubmissions { get; set; } = new List<SubmissionSummaryViewModel>();
+        public List<LessonCardViewModel> Lessons { get; set; } = new List<LessonCardViewModel>();
+        public List<StudyTipViewModel> Tips { get; set; } = new List<StudyTipViewModel>();
+        public List<MemeCardViewModel> Memes { get; set; } = new List<MemeCardViewModel>();
+        public List<StudentQuestionViewModel> StudentQuestions { get; set; } = new List<StudentQuestionViewModel>();
+        public List<CreativeIdeaViewModel> CreativeIdeas { get; set; } = new List<CreativeIdeaViewModel>();
+    }
+
+    public class DashboardSectionViewModel
+    {
+        public string Key { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public string AccentLabel { get; set; }
+        public int MockExamCount { get; set; }
+        public int PracticeCount { get; set; }
+        public int LessonCount { get; set; }
+        public List<PracticeTaskLineViewModel> PracticeTasks { get; set; } = new List<PracticeTaskLineViewModel>();
+        public List<StudentAssignedTestViewModel> FeaturedTests { get; set; } = new List<StudentAssignedTestViewModel>();
+    }
+
+    public class PracticeTaskLineViewModel
+    {
+        public int TaskNumber { get; set; }
+        public string Label { get; set; }
+        public int TaskCount { get; set; }
+    }
+
+    public class LessonCardViewModel
+    {
+        public int AssignmentId { get; set; }
+        public int LessonId { get; set; }
+        public string ExamType { get; set; }
+        public string Title { get; set; }
+        public string Theme { get; set; }
+        public string Summary { get; set; }
+        public string Notes { get; set; }
+        public string Homework { get; set; }
+        public string LessonFormat { get; set; }
+        public string GroupName { get; set; }
+        public bool IsVisibleToStudent { get; set; }
+        public bool IsCompleted { get; set; }
+        public DateTime? CompletedAtUtc { get; set; }
+    }
+
+    public class StudyTipViewModel
+    {
+        public int Id { get; set; }
+        public string ExamType { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+    }
+
+    public class MemeCardViewModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Caption { get; set; }
+        public string Theme { get; set; }
+        public string ImageUrl { get; set; }
+        public int LikeCount { get; set; }
+        public bool IsLikedByCurrentStudent { get; set; }
+    }
+
+    public class StudentQuestionViewModel
+    {
+        public int Id { get; set; }
+        public string StudentName { get; set; }
+        public string Topic { get; set; }
+        public string Message { get; set; }
+        public string TutorReply { get; set; }
+        public DateTime CreatedAtUtc { get; set; }
+        public DateTime? RepliedAtUtc { get; set; }
+        public bool IsAnswered => !string.IsNullOrWhiteSpace(TutorReply);
+    }
+
+    public class CreativeIdeaViewModel
+    {
+        public string Title { get; set; }
+        public string Prompt { get; set; }
+        public string ExamType { get; set; }
     }
 
     public class TutorGroupCardViewModel
@@ -82,6 +169,7 @@ namespace TutorPlatform.ViewModels
         public DateTime SubmittedAtUtc { get; set; }
         public bool NeedsManualReview { get; set; }
         public bool IsReviewed { get; set; }
+        public string ExamType { get; set; }
     }
 
     public class ReviewSubmissionViewModel
@@ -246,6 +334,51 @@ namespace TutorPlatform.ViewModels
         public List<string> AvailableMechanics { get; set; } = new List<string>();
         public List<string> AvailableQuestionTypes { get; set; } = new List<string>();
         public List<QuestionEditorViewModel> Questions { get; set; } = new List<QuestionEditorViewModel>();
+    }
+
+    public class CreateCreativeTaskViewModel
+    {
+        [Required]
+        [Display(Name = "Трек")]
+        public string ExamType { get; set; } = "ЕГЭ";
+
+        [Required]
+        [StringLength(180)]
+        [Display(Name = "Название")]
+        public string Title { get; set; }
+
+        [Display(Name = "Проблематика")]
+        public string Theme { get; set; }
+
+        [Required]
+        [Display(Name = "Формулировка задания")]
+        public string Prompt { get; set; }
+
+        [Display(Name = "Подсказка / комментарий")]
+        public string Explanation { get; set; }
+
+        [Range(1, 30)]
+        [Display(Name = "Баллы")]
+        public decimal MaxPoints { get; set; } = 10;
+
+        [Range(1, 180)]
+        [Display(Name = "Таймер")]
+        public int TimeLimitMinutes { get; set; } = 35;
+
+        [Display(Name = "Группы")]
+        public List<int> AssignedGroupIds { get; set; } = new List<int>();
+
+        public List<GroupOptionViewModel> AvailableGroups { get; set; } = new List<GroupOptionViewModel>();
+        public List<string> AvailableExamTypes { get; set; } = new List<string>();
+    }
+
+    public class ReplyStudentQuestionInputModel
+    {
+        public int QuestionId { get; set; }
+
+        [Required]
+        [StringLength(2000)]
+        public string TutorReply { get; set; }
     }
 
     public class GroupOptionViewModel

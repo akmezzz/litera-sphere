@@ -19,11 +19,20 @@
                 <a asp-controller="Home" asp-action="Index">Главная</a>
                 @if (User.Identity.IsAuthenticated)
                 {
-                    <a asp-controller="Home" asp-action="RedirectToDashboard">Кабинет</a>
+                    <a asp-controller="Home" asp-action="RedirectToDashboard">Личный кабинет</a>
+                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="tips">Полезные советы</a>
+                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="memes">Мемы</a>
+                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="cat-day">Котик дня</a>
+                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="quote-day">Цитата дня</a>
                     @if (User.IsInRole("Tutor"))
                     {
                         <a asp-controller="Tutor" asp-action="Students">Ученики</a>
                     }
+                }
+                else
+                {
+                    <a asp-area="Identity" asp-page="/Account/Login">Вход</a>
+                    <a asp-area="Identity" asp-page="/Account/Register">Регистрация</a>
                 }
             </nav>
             <partial name="_LoginPartial" />
