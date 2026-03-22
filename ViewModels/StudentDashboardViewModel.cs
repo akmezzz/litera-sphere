@@ -45,6 +45,7 @@ namespace TutorPlatform.ViewModels
 
     public class StudentResultViewModel
     {
+        public int SubmissionId { get; set; }
         public string Title { get; set; }
         public string ExamType { get; set; }
         public decimal AutoScore { get; set; }
@@ -57,6 +58,51 @@ namespace TutorPlatform.ViewModels
         public bool IsReviewed { get; set; }
     }
 
+
+    public class StudentTestPreviewViewModel
+    {
+        public int TestId { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public string ExamType { get; set; }
+        public string MechanicType { get; set; }
+        public string ModuleName { get; set; }
+        public int? TimeLimitMinutes { get; set; }
+        public bool AlreadySubmitted { get; set; }
+        public int? SubmissionId { get; set; }
+        public List<QuestionAttemptViewModel> Questions { get; set; } = new List<QuestionAttemptViewModel>();
+    }
+
+    public class StudentSubmissionDetailsViewModel
+    {
+        public int SubmissionId { get; set; }
+        public int TestId { get; set; }
+        public string Title { get; set; }
+        public string ExamType { get; set; }
+        public string MechanicType { get; set; }
+        public decimal AutoScore { get; set; }
+        public decimal MaxScore { get; set; }
+        public decimal? TutorScore { get; set; }
+        public string TutorFeedback { get; set; }
+        public DateTime SubmittedAtUtc { get; set; }
+        public DateTime? ReviewedAtUtc { get; set; }
+        public bool NeedsManualReview { get; set; }
+        public List<StudentSubmissionAnswerViewModel> Answers { get; set; } = new List<StudentSubmissionAnswerViewModel>();
+    }
+
+    public class StudentSubmissionAnswerViewModel
+    {
+        public int Order { get; set; }
+        public string Prompt { get; set; }
+        public string QuestionType { get; set; }
+        public string SubmittedValue { get; set; }
+        public string CorrectAnswer { get; set; }
+        public string Explanation { get; set; }
+        public decimal AwardedPoints { get; set; }
+        public decimal MaxPoints { get; set; }
+        public bool IsAutoCorrect { get; set; }
+        public string TutorComment { get; set; }
+    }
     public class TakeTestViewModel
     {
         public int TestId { get; set; }
@@ -106,6 +152,7 @@ namespace TutorPlatform.ViewModels
         public string Message { get; set; }
     }
 }
+
 
 
 

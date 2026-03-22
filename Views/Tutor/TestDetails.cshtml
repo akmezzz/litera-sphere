@@ -1,0 +1,84 @@
+@model TutorPlatform.ViewModels.TutorTestDetailsViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">Просмотр теста</span>
+        <h1>@Model.Title</h1>
+        <p>@Model.ExamType | @Model.MechanicType | @(string.IsNullOrWhiteSpace(Model.ModuleName) ? "без модуля" : Model.ModuleName)</p>
+    </div>
+
+    <section class="cards cards--stats">
+        <article class="metric-card">
+            <span>Заданий</span>
+            <strong>@Model.Questions.Count</strong>
+            <small>внутри теста</small>
+        </article>
+        <article class="metric-card">
+            <span>Таймер</span>
+            <strong>@(Model.TimeLimitMinutes?.ToString() ?? "-")</strong>
+            <small>минут</small>
+        </article>
+        <article class="metric-card">
+            <span>Отправок</span>
+            <strong>@Model.SubmissionCount</strong>
+            <small>ученических работ</small>
+        </article>
+        <article class="metric-card">
+            <span>Статус</span>
+            <strong>@(Model.IsPublished ? "Опубликован" : "Черновик")</strong>
+            <small>@(Model.IsMockExam ? "Пробник" : "Обычный тест")</small>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel__header">
+            <h2>Параметры теста</h2>
+            <a class="btn btn-ghost" asp-action="Index">Назад</a>
+        </div>
+        <div class="badge-row">
+            <span class="tag">@Model.ExamType</span>
+            <span class="tag">@Model.MechanicType</span>
+            @foreach (var groupName in Model.GroupNames)
+            {
+                <span class="tag">@groupName</span>
+            }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <p>@Model.Description</p>
+        }
+    </section>
+
+    <section class="panel">
+        <div class="panel__header">
+            <h2>Задания</h2>
+            <span>@Model.Questions.Count</span>
+        </div>
+        @foreach (var question in Model.Questions)
+        {
+            <div class="list-card">
+                <div class="badge-row">
+                    <span class="tag">№ @question.Order</span>
+                    <span class="tag">@question.QuestionType</span>
+                    <span class="tag">@question.MaxPoints балл.</span>
+                </div>
+                <h3>@question.Prompt</h3>
+                @if (!string.IsNullOrWhiteSpace(question.OptionsText))
+                {
+                    <pre class="question-preview">@question.OptionsText</pre>
+                }
+                @if (!string.IsNullOrWhiteSpace(question.CorrectAnswer))
+                {
+                    <p><strong>Правильный ответ:</strong> @question.CorrectAnswer</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                {
+                    <p class="muted">@question.Explanation</p>
+                }
+            </div>
+        }
+    </section>
+</section>

@@ -1,0 +1,72 @@
+@model TutorPlatform.ViewModels.StudentTestPreviewViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">Предпросмотр теста</span>
+        <h1>@Model.Title</h1>
+        <p>@Model.ExamType / @Model.MechanicType / @(string.IsNullOrWhiteSpace(Model.ModuleName) ? "без модуля" : Model.ModuleName)</p>
+        @if (!string.IsNullOrWhiteSpace(Model.Description))
+        {
+            <p>@Model.Description</p>
+        }
+        @if (Model.TimeLimitMinutes.HasValue)
+        {
+            <p class="muted">Рекомендуемое время: @Model.TimeLimitMinutes минут.</p>
+        }
+    </div>
+
+    <section class="cards cards--stats">
+        <article class="metric-card">
+            <span>Заданий</span>
+            <strong>@Model.Questions.Count</strong>
+            <small>внутри теста</small>
+        </article>
+        <article class="metric-card">
+            <span>Статус</span>
+            <strong>@(Model.AlreadySubmitted ? "Уже сдан" : "Готов к работе")</strong>
+            <small>@(Model.AlreadySubmitted ? "можно открыть результат" : "можно приступать")</small>
+        </article>
+    </section>
+
+    <section class="panel">
+        <div class="panel__header">
+            <h2>Что внутри теста</h2>
+            <a class="btn btn-ghost" asp-action="Index" asp-route-tab="overview">Назад</a>
+        </div>
+
+        @foreach (var question in Model.Questions)
+        {
+            <div class="list-card">
+                <div class="badge-row">
+                    <span class="tag">№ @question.Order</span>
+                    <span class="tag">@question.QuestionType</span>
+                    <span class="tag">@question.MaxPoints балл.</span>
+                </div>
+                <h3>@question.Prompt</h3>
+                @if (question.Options.Any())
+                {
+                    <p class="muted">Вариантов ответа: @question.Options.Count</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                {
+                    <p class="muted">Комментарий к заданию: @question.Explanation</p>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="hero__actions">
+        @if (Model.AlreadySubmitted && Model.SubmissionId.HasValue)
+        {
+            <a class="btn btn-accent" asp-action="ResultDetails" asp-route-id="@Model.SubmissionId.Value">Открыть результат</a>
+        }
+        else
+        {
+            <a class="btn btn-accent" asp-action="TakeTest" asp-route-id="@Model.TestId">Перейти к выполнению</a>
+        }
+        <a class="btn btn-ghost" asp-action="Index" asp-route-tab="results">К результатам</a>
+    </div>
+</section>

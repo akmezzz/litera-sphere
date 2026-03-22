@@ -63,6 +63,52 @@ namespace TutorPlatform.Controllers
         }
 
         [HttpGet]
+        [Route("Tutor/TestDetails/{id:int}")]
+        public async Task<IActionResult> TestDetails(int id)
+        {
+            var test = await _dbContext.LearningTests
+                .AsNoTracking()
+                .Where(item => item.Id == id)
+                .Include(item => item.Assignments)
+                    .ThenInclude(assignment => assignment.StudentGroup)
+                .Include(item => item.Submissions)
+                .Include(item => item.Questions)
+                .FirstOrDefaultAsync();
+
+            if (test == null)
+            {
+                return NotFound();
+            }
+
+            var viewModel = new TutorTestDetailsViewModel
+            {
+                Id = test.Id,
+                Title = test.Title,
+                ExamType = test.ExamType,
+                MechanicType = test.MechanicType,
+                ModuleName = test.ModuleName,
+                Description = test.Description,
+                IsPublished = test.IsPublished,
+                IsMockExam = test.IsMockExam,
+                TimeLimitMinutes = test.TimeLimitMinutes,
+                SubmissionCount = test.Submissions.Count,
+                GroupNames = test.Assignments.Select(assignment => assignment.StudentGroup.Name).Distinct().OrderBy(name => name).ToList(),
+                Questions = test.Questions.OrderBy(question => question.Order).Select(question => new TutorTestQuestionViewModel
+                {
+                    Order = question.Order,
+                    Prompt = question.Prompt,
+                    QuestionType = question.QuestionType,
+                    OptionsText = question.OptionsText,
+                    CorrectAnswer = question.CorrectAnswer,
+                    Explanation = question.Explanation,
+                    MaxPoints = question.MaxPoints
+                }).ToList()
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> Students(string searchQuery = null)
         {
             var tutor = await _userManager.GetUserAsync(User);
@@ -233,13 +279,24 @@ namespace TutorPlatform.Controllers
             decimal manualScore = 0;
             foreach (var answer in submission.Answers)
             {
-                if (!IsManualQuestion(answer.LearningTestQuestion)) continue;
-                if (!inputById.TryGetValue(answer.Id, out var answerInput)) continue;
+                if (!inputById.TryGetValue(answer.Id, out var answerInput))
+                {
+                    continue;
+                }
+
+                answer.TutorComment = answerInput.TutorComment?.Trim();
+
+                if (!IsManualQuestion(answer.LearningTestQuestion))
+                {
+                    continue;
+                }
+
                 if (answerInput.AwardedPoints < 0 || answerInput.AwardedPoints > answer.LearningTestQuestion.MaxPoints)
                 {
                     ModelState.AddModelError(string.Empty, $"Баллы за задание {answer.LearningTestQuestion.Order} должны быть от 0 до {answer.LearningTestQuestion.MaxPoints}.");
                     break;
                 }
+
                 answer.AwardedPoints = answerInput.AwardedPoints;
                 manualScore += answer.AwardedPoints;
             }
@@ -249,8 +306,19 @@ namespace TutorPlatform.Controllers
                 var reviewViewModel = await BuildReviewSubmissionViewModelAsync(model.SubmissionId, tutor.Id);
                 if (reviewViewModel == null) return NotFound();
                 reviewViewModel.TutorFeedback = model.TutorFeedback;
-                foreach (var answerViewModel in reviewViewModel.Answers.Where(answer => answer.CanEditPoints))
-                    if (inputById.TryGetValue(answerViewModel.AnswerId, out var answerInput)) answerViewModel.AwardedPoints = answerInput.AwardedPoints;
+                foreach (var answerViewModel in reviewViewModel.Answers)
+                {
+                    if (!inputById.TryGetValue(answerViewModel.AnswerId, out var answerInput))
+                    {
+                        continue;
+                    }
+
+                    answerViewModel.TutorComment = answerInput.TutorComment;
+                    if (answerViewModel.CanEditPoints)
+                    {
+                        answerViewModel.AwardedPoints = answerInput.AwardedPoints;
+                    }
+                }
                 reviewViewModel.TutorScore = submission.AutoScore + reviewViewModel.Answers.Where(answer => answer.CanEditPoints).Sum(answer => answer.AwardedPoints);
                 return View(reviewViewModel);
             }
@@ -311,7 +379,7 @@ namespace TutorPlatform.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> CreateTest() => View(await BuildCreateTestModelAsync());
+        public async Task<IActionResult> CreateTest(string examType = null, string sectionKey = null, string subsectionKey = null) => View(await BuildCreateTestModelAsync(null, examType, sectionKey, subsectionKey));
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -319,7 +387,7 @@ namespace TutorPlatform.Controllers
         {
             model.Questions = model.Questions?.Where(question => !string.IsNullOrWhiteSpace(question.Prompt)).ToList() ?? new List<QuestionEditorViewModel>();
             if (!model.Questions.Any()) ModelState.AddModelError(string.Empty, "Добавьте хотя бы один вопрос.");
-            if (!ModelState.IsValid) return View(await BuildCreateTestModelAsync(model));
+            if (!ModelState.IsValid) return View(await BuildCreateTestModelAsync(model, model.ExamType, model.SourceSectionKey, model.SourceSubsectionKey));
 
             var tutor = await _userManager.GetUserAsync(User);
             var test = new LearningTest
@@ -351,6 +419,16 @@ namespace TutorPlatform.Controllers
             foreach (var groupId in model.AssignedGroupIds.Distinct()) _dbContext.TestAssignments.Add(new TestAssignment { LearningTestId = test.Id, StudentGroupId = groupId });
             await _dbContext.SaveChangesAsync();
             TempData["StatusMessage"] = "Тест сохранен и назначен выбранным группам.";
+            var redirectSubsectionKey = !string.IsNullOrWhiteSpace(model.SourceSubsectionKey) ? model.SourceSubsectionKey : SanitizeKey(model.ExamType);
+            var redirectSectionKey = !string.IsNullOrWhiteSpace(model.SourceSectionKey) ? model.SourceSectionKey : ResolveSectionKeyForExamType(model.ExamType);
+            if (!string.IsNullOrWhiteSpace(redirectSubsectionKey))
+            {
+                return RedirectToAction(nameof(Subsection), new { key = redirectSubsectionKey });
+            }
+            if (!string.IsNullOrWhiteSpace(redirectSectionKey))
+            {
+                return RedirectToAction(nameof(Section), new { key = redirectSectionKey });
+            }
             return RedirectToAction(nameof(Index));
         }
 
@@ -446,35 +524,10 @@ namespace TutorPlatform.Controllers
             var likeCounts = await _dbContext.StudentMemeLikes.AsNoTracking().Where(item => memeIds.Contains(item.DailyMemeId)).GroupBy(item => item.DailyMemeId).Select(group => new { DailyMemeId = group.Key, Count = group.Count() }).ToListAsync();
             var questions = await _dbContext.StudentQuestions.AsNoTracking().Where(item => item.TutorId == tutorId).Include(item => item.Student).OrderByDescending(item => item.CreatedAtUtc).Take(8).ToListAsync();
 
-            var sectionExamTypes = new[] { "ЕГЭ", "ОГЭ", "Итоговое сочинение", "Устное собеседование" };
-            var sections = sectionExamTypes.Select(examType => new DashboardSectionViewModel
-            {
-                Key = SanitizeKey(examType),
-                Title = examType,
-                Description = PlatformCatalog.GetExamDescription(examType),
-                AccentLabel = examType == "ЕГЭ" ? "3:30" : examType == "ОГЭ" ? "3:55" : "Трек",
-                MockExamCount = tests.Count(test => test.ExamType == examType && test.IsMockExam),
-                PracticeCount = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType).Sum(item => item.TaskCount),
-                LessonCount = lessonAssignments.Count(item => item.Lesson.ExamType == examType),
-                PracticeTasks = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType)
-                    .Take(examType == "ЕГЭ" ? 26 : 12)
-                    .Select(item => new PracticeTaskLineViewModel { TaskNumber = item.TaskNumber, Label = item.Label, TaskCount = item.TaskCount })
-                    .ToList(),
-                FeaturedTests = tests.Where(test => test.ExamType == examType).Take(6).Select(test => new StudentAssignedTestViewModel
-                {
-                    Id = test.Id,
-                    Title = test.Title,
-                    ExamType = test.ExamType,
-                    MechanicType = test.MechanicType,
-                    GroupName = test.Assignments.Count == 0 ? "без группы" : $"Групп: {test.Assignments.Count}",
-                    QuestionCount = test.Questions.Count,
-                    TimeLimitMinutes = test.TimeLimitMinutes,
-                    AlreadySubmitted = false,
-                    IsMockExam = test.IsMockExam,
-                    IsCreativeTask = test.MechanicType == "Творческое задание",
-                    ModuleName = test.ModuleName
-                }).ToList()
-            }).ToList();
+            var leafSections = new[] { "ЕГЭ", "ОГЭ", "Итоговое сочинение", "Устное собеседование" }
+                .Select(examType => BuildTutorLeafSection(examType, tests, lessonAssignments))
+                .ToList();
+            var sections = BuildGroupedSections(leafSections);
 
             var availableTabs = sections.Select(section => section.Key)
                 .Concat(new[] { "overview", "lessons", "tips", "memes", "submissions", "questions", "creative" })
@@ -568,7 +621,7 @@ namespace TutorPlatform.Controllers
             return model;
         }
 
-        private async Task<CreateTestViewModel> BuildCreateTestModelAsync(CreateTestViewModel model = null)
+        private async Task<CreateTestViewModel> BuildCreateTestModelAsync(CreateTestViewModel model = null, string examType = null, string sectionKey = null, string subsectionKey = null)
         {
             model ??= new CreateTestViewModel();
             var tutor = await _userManager.GetUserAsync(User);
@@ -576,12 +629,66 @@ namespace TutorPlatform.Controllers
             model.AvailableExamTypes = PlatformCatalog.ExamTypes.ToList();
             model.AvailableMechanics = PlatformCatalog.Mechanics.ToList();
             model.AvailableQuestionTypes = PlatformCatalog.QuestionTypes.ToList();
+            model.SourceSectionKey = sectionKey ?? model.SourceSectionKey ?? ResolveSectionKeyForExamType(examType ?? model.ExamType);
+            model.SourceSubsectionKey = subsectionKey ?? model.SourceSubsectionKey ?? SanitizeKey(examType ?? model.ExamType);
+            ApplyTestPreset(model, examType ?? model.ExamType);
             if (!model.Questions.Any())
             {
                 model.Questions.Add(new QuestionEditorViewModel());
                 model.Questions.Add(new QuestionEditorViewModel());
             }
             return model;
+        }
+
+        private static void ApplyTestPreset(CreateTestViewModel model, string examType)
+        {
+            if (string.IsNullOrWhiteSpace(examType))
+            {
+                return;
+            }
+
+            model.ExamType = examType;
+            switch (examType)
+            {
+                case "ЕГЭ":
+                    model.ModuleName ??= "Контрольные тесты";
+                    model.MechanicType ??= "Пробник";
+                    model.TimeLimitMinutes ??= 210;
+                    model.IsMockExam = model.IsMockExam || model.MechanicType == "Пробник";
+                    model.PresetTitleHint ??= "Например: ЕГЭ, вариант 2";
+                    break;
+                case "ОГЭ":
+                    model.ModuleName ??= "Контрольные тесты";
+                    model.MechanicType ??= "Пробник";
+                    model.TimeLimitMinutes ??= 235;
+                    model.IsMockExam = model.IsMockExam || model.MechanicType == "Пробник";
+                    model.PresetTitleHint ??= "Например: ОГЭ, вариант 3";
+                    break;
+                case "Итоговое сочинение":
+                    model.ModuleName ??= "Творческий цех";
+                    model.MechanicType ??= "Творческое задание";
+                    model.TimeLimitMinutes ??= 180;
+                    model.PresetTitleHint ??= "Например: Итоговое сочинение, тема дома";
+                    break;
+                case "Устное собеседование":
+                    model.ModuleName ??= "Голос эфира";
+                    model.MechanicType ??= "Подкаст-диктор";
+                    model.TimeLimitMinutes ??= 20;
+                    model.PresetTitleHint ??= "Например: Устное собеседование, чтение вслух";
+                    break;
+            }
+        }
+
+        private static string ResolveSectionKeyForExamType(string examType)
+        {
+            return examType switch
+            {
+                "ЕГЭ" => "ege-writing",
+                "Итоговое сочинение" => "ege-writing",
+                "ОГЭ" => "oge-oral",
+                "Устное собеседование" => "oge-oral",
+                _ => null
+            };
         }
 
         private async Task<CreateCreativeTaskViewModel> BuildCreateCreativeTaskModelAsync(CreateCreativeTaskViewModel model = null)
@@ -626,7 +733,8 @@ namespace TutorPlatform.Controllers
                     MaxPoints = answer.LearningTestQuestion.MaxPoints,
                     AwardedPoints = answer.AwardedPoints,
                     IsAutoCorrect = answer.IsAutoCorrect,
-                    CanEditPoints = IsManualQuestion(answer.LearningTestQuestion)
+                    CanEditPoints = IsManualQuestion(answer.LearningTestQuestion),
+                    TutorComment = answer.TutorComment
                 }).ToList()
             };
         }
@@ -731,6 +839,20 @@ namespace TutorPlatform.Controllers
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -197,6 +197,7 @@ namespace TutorPlatform.Data
                 await EnsureSqliteColumnAsync(dbContext, "StudentSubmissions", "TutorScore", "REAL NULL");
                 await EnsureSqliteColumnAsync(dbContext, "StudentSubmissions", "TutorFeedback", "TEXT NULL");
                 await EnsureSqliteColumnAsync(dbContext, "StudentSubmissions", "ReviewedAtUtc", "TEXT NULL");
+                await EnsureSqliteColumnAsync(dbContext, "StudentAnswers", "TutorComment", "TEXT NULL");
                 return;
             }
 
@@ -211,6 +212,9 @@ IF COL_LENGTH('StudentSubmissions', 'TutorFeedback') IS NULL
                 await dbContext.Database.ExecuteSqlRawAsync(@"
 IF COL_LENGTH('StudentSubmissions', 'ReviewedAtUtc') IS NULL
     ALTER TABLE StudentSubmissions ADD ReviewedAtUtc datetime2 NULL;");
+                await dbContext.Database.ExecuteSqlRawAsync(@"
+IF COL_LENGTH('StudentAnswers', 'TutorComment') IS NULL
+    ALTER TABLE StudentAnswers ADD TutorComment nvarchar(2000) NULL;");
             }
         }
 
@@ -594,6 +598,7 @@ IF COL_LENGTH('StudentSubmissions', 'ReviewedAtUtc') IS NULL
         }
     }
 }
+
 
 
 

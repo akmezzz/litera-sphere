@@ -36,7 +36,7 @@
                 <p>@currentSubsection?.Description</p>
             </div>
             <div class="hero__actions">
-                <a class="btn btn-accent" asp-action="CreateTest">Новый тест</a>
+                <a class="btn btn-accent" asp-action="CreateTest" asp-route-examType="@currentSubsection?.Title" asp-route-sectionKey="@currentSection?.Key" asp-route-subsectionKey="@currentSubsection?.Key">Новый тест</a>
                 <a class="btn btn-ghost" asp-action="CreateCreativeTask">Творческое задание</a>
             </div>
         </section>
@@ -57,7 +57,7 @@
                     {
                         @foreach (var test in currentSubsection.FeaturedTests)
                         {
-                            <div class="list-card">
+                            <a class="list-card list-card--link" asp-action="TestDetails" asp-route-id="@test.Id">
                                 <div class="badge-row">
                                     <span class="tag">@test.MechanicType</span>
                                     @if (test.IsMockExam)
@@ -67,7 +67,8 @@
                                 </div>
                                 <h3>@test.Title</h3>
                                 <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
-                            </div>
+                                <p class="muted"><strong>Открыть тест</strong></p>
+                            </a>
                         }
                     }
                     else
@@ -115,3 +116,6 @@
         </section>
     </div>
 </section>
+
+
+

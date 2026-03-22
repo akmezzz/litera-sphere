@@ -53,6 +53,9 @@
                     <p class="muted">Автобаллы: @answer.AwardedPoints / @answer.MaxPoints</p>
                     <input type="hidden" name="Answers[@i].AwardedPoints" value="@answer.AwardedPoints.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
                 }
+
+                <label>Комментарий к этому заданию</label>
+                <textarea name="Answers[@i].TutorComment" class="form-control" rows="3">@answer.TutorComment</textarea>
             </article>
         }
 
@@ -99,3 +102,4 @@
         })();
     </script>
 }
+

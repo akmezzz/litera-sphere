@@ -12,5 +12,8 @@ namespace TutorPlatform.Models
         public string SubmittedValue { get; set; }
         public bool IsAutoCorrect { get; set; }
         public decimal AwardedPoints { get; set; }
+        public string TutorComment { get; set; }
     }
 }
+
+

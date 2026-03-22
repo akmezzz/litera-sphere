@@ -243,6 +243,7 @@ namespace TutorPlatform.Controllers
                 Questions = questions,
                 Results = submissions.Select(submission => new StudentResultViewModel
                 {
+                    SubmissionId = submission.Id,
                     Title = submission.LearningTest.Title,
                     ExamType = submission.LearningTest.ExamType,
                     AutoScore = submission.AutoScore,
@@ -344,6 +345,115 @@ namespace TutorPlatform.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> TestDetails(int id)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            var test = await _dbContext.LearningTests
+                .AsNoTracking()
+                .Where(item => item.Id == id)
+                .Include(item => item.Questions)
+                .Include(item => item.Assignments)
+                    .ThenInclude(assignment => assignment.StudentGroup)
+                        .ThenInclude(group => group.Members)
+                .FirstOrDefaultAsync();
+
+            if (test == null || !test.Assignments.Any(assignment => assignment.StudentGroup.Members.Any(member => member.StudentId == student.Id)))
+            {
+                return NotFound();
+            }
+
+            var submissionId = await _dbContext.StudentSubmissions
+                .AsNoTracking()
+                .Where(submission => submission.LearningTestId == id && submission.StudentId == student.Id)
+                .Select(submission => (int?)submission.Id)
+                .FirstOrDefaultAsync();
+
+            var viewModel = new StudentTestPreviewViewModel
+            {
+                TestId = test.Id,
+                Title = test.Title,
+                Description = test.Description,
+                ExamType = test.ExamType,
+                MechanicType = test.MechanicType,
+                ModuleName = test.ModuleName,
+                TimeLimitMinutes = test.TimeLimitMinutes,
+                AlreadySubmitted = submissionId.HasValue,
+                SubmissionId = submissionId,
+                Questions = test.Questions
+                    .OrderBy(question => question.Order)
+                    .Select(question => new QuestionAttemptViewModel
+                    {
+                        QuestionId = question.Id,
+                        Order = question.Order,
+                        Prompt = question.Prompt,
+                        QuestionType = question.QuestionType,
+                        Explanation = question.Explanation,
+                        MaxPoints = question.MaxPoints,
+                        Options = (question.OptionsText ?? string.Empty)
+                            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(option => option.Trim())
+                            .Where(option => !string.IsNullOrWhiteSpace(option))
+                            .ToList()
+                    })
+                    .ToList()
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ResultDetails(int id)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            var submission = await _dbContext.StudentSubmissions
+                .AsNoTracking()
+                .Where(item => item.Id == id && item.StudentId == student.Id)
+                .Include(item => item.LearningTest)
+                .Include(item => item.Answers)
+                    .ThenInclude(answer => answer.LearningTestQuestion)
+                .FirstOrDefaultAsync();
+
+            if (submission == null)
+            {
+                return NotFound();
+            }
+
+            var viewModel = new StudentSubmissionDetailsViewModel
+            {
+                SubmissionId = submission.Id,
+                TestId = submission.LearningTestId,
+                Title = submission.LearningTest.Title,
+                ExamType = submission.LearningTest.ExamType,
+                MechanicType = submission.LearningTest.MechanicType,
+                AutoScore = submission.AutoScore,
+                MaxScore = submission.MaxScore,
+                TutorScore = submission.TutorScore,
+                TutorFeedback = submission.TutorFeedback,
+                SubmittedAtUtc = submission.SubmittedAtUtc,
+                ReviewedAtUtc = submission.ReviewedAtUtc,
+                NeedsManualReview = submission.NeedsManualReview,
+                Answers = submission.Answers
+                    .OrderBy(answer => answer.LearningTestQuestion.Order)
+                    .Select(answer => new StudentSubmissionAnswerViewModel
+                    {
+                        Order = answer.LearningTestQuestion.Order,
+                        Prompt = answer.LearningTestQuestion.Prompt,
+                        QuestionType = answer.LearningTestQuestion.QuestionType,
+                        SubmittedValue = answer.SubmittedValue,
+                        CorrectAnswer = answer.LearningTestQuestion.CorrectAnswer,
+                        Explanation = answer.LearningTestQuestion.Explanation,
+                        AwardedPoints = answer.AwardedPoints,
+                        MaxPoints = answer.LearningTestQuestion.MaxPoints,
+                        IsAutoCorrect = answer.IsAutoCorrect,
+                        TutorComment = answer.TutorComment
+                    })
+                    .ToList()
+            };
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> TakeTest(int id)
         {
             var student = await _userManager.GetUserAsync(User);
@@ -367,8 +477,13 @@ namespace TutorPlatform.Controllers
 
             if (existingSubmission)
             {
+                var submissionId = await _dbContext.StudentSubmissions
+                    .AsNoTracking()
+                    .Where(submission => submission.LearningTestId == id && submission.StudentId == student.Id)
+                    .Select(submission => submission.Id)
+                    .FirstOrDefaultAsync();
                 TempData["StatusMessage"] = "Этот тест уже отправлен.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(ResultDetails), new { id = submissionId });
             }
 
             var viewModel = new TakeTestViewModel
@@ -420,8 +535,13 @@ namespace TutorPlatform.Controllers
 
             if (existingSubmission)
             {
+                var submissionId = await _dbContext.StudentSubmissions
+                    .AsNoTracking()
+                    .Where(submission => submission.LearningTestId == model.TestId && submission.StudentId == student.Id)
+                    .Select(submission => submission.Id)
+                    .FirstOrDefaultAsync();
                 TempData["StatusMessage"] = "Этот тест уже отправлен.";
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(ResultDetails), new { id = submissionId });
             }
 
             var submission = new StudentSubmission
@@ -476,7 +596,7 @@ namespace TutorPlatform.Controllers
             await _dbContext.SaveChangesAsync();
 
             TempData["StatusMessage"] = string.Format(CultureInfo.InvariantCulture, "Работа отправлена. Автоматический результат: {0}/{1}.", submission.AutoScore, submission.MaxScore);
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(ResultDetails), new { id = submission.Id });
         }
 
         private static string SanitizeKey(string value)
@@ -589,6 +709,10 @@ namespace TutorPlatform.Controllers
         }
     }
 }
+
+
+
+
 
 
 

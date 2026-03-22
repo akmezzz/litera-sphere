@@ -210,6 +210,7 @@ namespace TutorPlatform.ViewModels
         public decimal AwardedPoints { get; set; }
         public bool IsAutoCorrect { get; set; }
         public bool CanEditPoints { get; set; }
+        public string TutorComment { get; set; }
     }
 
     public class ReviewSubmissionInputModel
@@ -227,6 +228,7 @@ namespace TutorPlatform.ViewModels
     {
         public int AnswerId { get; set; }
         public decimal AwardedPoints { get; set; }
+        public string TutorComment { get; set; }
     }
 
     public class CreateStudentViewModel
@@ -334,6 +336,10 @@ namespace TutorPlatform.ViewModels
         [Display(Name = "Группы для назначения")]
         public List<int> AssignedGroupIds { get; set; } = new List<int>();
 
+        public string SourceSectionKey { get; set; }
+        public string SourceSubsectionKey { get; set; }
+        public string PresetTitleHint { get; set; }
+
         public List<GroupOptionViewModel> AvailableGroups { get; set; } = new List<GroupOptionViewModel>();
         public List<string> AvailableExamTypes { get; set; } = new List<string>();
         public List<string> AvailableMechanics { get; set; } = new List<string>();
@@ -377,6 +383,32 @@ namespace TutorPlatform.ViewModels
         public List<string> AvailableExamTypes { get; set; } = new List<string>();
     }
 
+    public class TutorTestDetailsViewModel
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string ExamType { get; set; }
+        public string MechanicType { get; set; }
+        public string ModuleName { get; set; }
+        public string Description { get; set; }
+        public bool IsPublished { get; set; }
+        public bool IsMockExam { get; set; }
+        public int? TimeLimitMinutes { get; set; }
+        public int SubmissionCount { get; set; }
+        public List<string> GroupNames { get; set; } = new List<string>();
+        public List<TutorTestQuestionViewModel> Questions { get; set; } = new List<TutorTestQuestionViewModel>();
+    }
+
+    public class TutorTestQuestionViewModel
+    {
+        public int Order { get; set; }
+        public string Prompt { get; set; }
+        public string QuestionType { get; set; }
+        public string OptionsText { get; set; }
+        public string CorrectAnswer { get; set; }
+        public string Explanation { get; set; }
+        public decimal MaxPoints { get; set; }
+    }
     public class ReplyStudentQuestionInputModel
     {
         public int QuestionId { get; set; }
@@ -414,6 +446,11 @@ namespace TutorPlatform.ViewModels
         public decimal MaxPoints { get; set; } = 1;
     }
 }
+
+
+
+
+
 
 
 

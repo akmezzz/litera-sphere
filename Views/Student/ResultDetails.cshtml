@@ -1,0 +1,81 @@
+@model TutorPlatform.ViewModels.StudentSubmissionDetailsViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="form-shell form-shell--wide">
+    <div class="section-heading">
+        <span class="eyebrow">Результат работы</span>
+        <h1>@Model.Title</h1>
+        <p>@Model.ExamType / @Model.MechanicType</p>
+        <p class="muted">Отправлено: @Model.SubmittedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        @if (Model.ReviewedAtUtc.HasValue)
+        {
+            <p class="muted">Проверено: @Model.ReviewedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</p>
+        }
+    </div>
+
+    <section class="cards cards--stats">
+        <article class="metric-card">
+            <span>Автопроверка</span>
+            <strong>@Model.AutoScore</strong>
+            <small>из @Model.MaxScore</small>
+        </article>
+        <article class="metric-card">
+            <span>Итоговый балл</span>
+            <strong>@(Model.TutorScore ?? Model.AutoScore)</strong>
+            <small>после проверки</small>
+        </article>
+        <article class="metric-card">
+            <span>Статус</span>
+            <strong>@(Model.ReviewedAtUtc.HasValue ? "Проверено" : (Model.NeedsManualReview ? "Ждет проверки" : "Завершено"))</strong>
+            <small>@Model.Answers.Count ответов</small>
+        </article>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(Model.TutorFeedback))
+    {
+        <section class="panel">
+            <div class="panel__header">
+                <h2>Комментарий репетитора</h2>
+            </div>
+            <p>@Model.TutorFeedback</p>
+        </section>
+    }
+
+    <section class="panel">
+        <div class="panel__header">
+            <h2>Разбор по заданиям</h2>
+            <a class="btn btn-ghost" asp-action="Index" asp-route-tab="results">Назад к списку</a>
+        </div>
+        @foreach (var answer in Model.Answers)
+        {
+            <div class="list-card">
+                <div class="badge-row">
+                    <span class="tag">№ @answer.Order</span>
+                    <span class="tag">@answer.QuestionType</span>
+                    <span class="tag">@answer.AwardedPoints / @answer.MaxPoints</span>
+                </div>
+                <h3>@answer.Prompt</h3>
+                <p><strong>Твой ответ:</strong> @(string.IsNullOrWhiteSpace(answer.SubmittedValue) ? "нет ответа" : answer.SubmittedValue)</p>
+                @if (!string.IsNullOrWhiteSpace(answer.CorrectAnswer))
+                {
+                    <p><strong>Правильный ответ:</strong> @answer.CorrectAnswer</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(answer.TutorComment))
+                {
+                    <p><strong>Комментарий репетитора:</strong> @answer.TutorComment</p>
+                }
+                @if (!string.IsNullOrWhiteSpace(answer.Explanation))
+                {
+                    <p class="muted">Подсказка/критерий: @answer.Explanation</p>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="hero__actions">
+        <a class="btn btn-accent" asp-action="TestDetails" asp-route-id="@Model.TestId">Открыть тест</a>
+        <a class="btn btn-ghost" asp-action="Index" asp-route-tab="results">К результатам</a>
+    </div>
+</section>

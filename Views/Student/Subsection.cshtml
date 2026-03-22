@@ -67,14 +67,13 @@
                                 </div>
                                 <h3>@test.Title</h3>
                                 <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
-                                @if (test.AlreadySubmitted)
-                                {
-                                    <p class="muted">Работа уже отправлена.</p>
-                                }
-                                else
-                                {
-                                    <a class="btn btn-accent" asp-action="TakeTest" asp-route-id="@test.Id">Открыть</a>
-                                }
+                                <div class="hero__actions">
+                                    <a class="btn btn-accent" asp-action="TestDetails" asp-route-id="@test.Id">Предпросмотр</a>
+                                    @if (test.AlreadySubmitted)
+                                    {
+                                        <span class="tag tag--success">Работа уже отправлена</span>
+                                    }
+                                </div>
                             </div>
                         }
                     }
@@ -124,3 +123,4 @@
         </section>
     </div>
 </section>
+

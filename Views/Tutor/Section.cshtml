@@ -34,7 +34,7 @@
                 <p>@currentSection?.Description</p>
             </div>
             <div class="hero__actions">
-                <a class="btn btn-accent" asp-action="CreateTest">Новый тест</a>
+                <a class="btn btn-accent" asp-action="CreateTest" asp-route-sectionKey="@currentSection?.Key">Новый тест</a>
                 <a class="btn btn-ghost" asp-action="CreateCreativeTask">Творческое задание</a>
             </div>
         </section>
@@ -42,26 +42,75 @@
         <section class="panel panel--section">
             <div class="panel__header">
                 <div>
-                    <span class="eyebrow">Подразделы</span>
-                    <h2>Открой нужный подраздел</h2>
+                    <span class="eyebrow">@(currentSection?.HasSubsections == true ? "Подразделы" : "Материалы раздела")</span>
+                    <h2>@(currentSection?.HasSubsections == true ? "Открой нужный подраздел" : "Созданные материалы")</h2>
                 </div>
                 <a class="btn btn-ghost" asp-action="Index" asp-route-tab="overview">Назад в обзор</a>
             </div>
 
-            <div class="cards cards--compact">
-                @foreach (var subsection in currentSection?.Subsections ?? new List<TutorPlatform.ViewModels.DashboardSectionViewModel>())
-                {
-                    <a class="list-card list-card--link" asp-action="Subsection" asp-route-key="@subsection.Key">
-                        <div class="badge-row">
-                            <span class="tag">@subsection.Title</span>
-                            <span class="tag">@subsection.AccentLabel</span>
+            @if (currentSection?.HasSubsections == true)
+            {
+                <div class="cards cards--compact">
+                    @foreach (var subsection in currentSection.Subsections)
+                    {
+                        <a class="list-card list-card--link" asp-action="Subsection" asp-route-key="@subsection.Key">
+                            <div class="badge-row">
+                                <span class="tag">@subsection.Title</span>
+                                <span class="tag">@subsection.AccentLabel</span>
+                            </div>
+                            <h3>@subsection.Description</h3>
+                            <p class="muted">Пробников: @subsection.MockExamCount | Практика: @subsection.PracticeCount | Уроков: @subsection.LessonCount</p>
+                        </a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="section-columns">
+                    <div class="panel panel--nested">
+                        <h3>Тесты и задания</h3>
+                        @if (currentSection?.FeaturedTests.Any() == true)
+                        {
+                            @foreach (var test in currentSection.FeaturedTests)
+                            {
+                                <a class="list-card list-card--link" asp-action="TestDetails" asp-route-id="@test.Id">
+                                    <div class="badge-row">
+                                        <span class="tag">@test.MechanicType</span>
+                                        @if (test.IsMockExam)
+                                        {
+                                            <span class="tag tag--warning">Пробник</span>
+                                        }
+                                    </div>
+                                    <h3>@test.Title</h3>
+                                    <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
+                                    <p class="muted"><strong>Открыть тест</strong></p>
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <p class="muted">Пока здесь нет созданных материалов.</p>
+                        }
+                    </div>
+                    <div class="panel panel--nested">
+                        <h3>Типовые задания</h3>
+                        <div class="practice-lines">
+                            @foreach (var task in currentSection?.PracticeTasks ?? new List<TutorPlatform.ViewModels.PracticeTaskLineViewModel>())
+                            {
+                                <div class="practice-line">
+                                    <strong>@task.TaskNumber</strong>
+                                    <span>@task.Label</span>
+                                    <em>@task.TaskCount заданий</em>
+                                </div>
+                            }
                         </div>
-                        <h3>@subsection.Description</h3>
-                        <p class="muted">Пробников: @subsection.MockExamCount | Практика: @subsection.PracticeCount | Уроков: @subsection.LessonCount</p>
-                    </a>
-                }
-            </div>
+                    </div>
+                </div>
+            }
         </section>
     </div>
 </section>
+
+
+
 

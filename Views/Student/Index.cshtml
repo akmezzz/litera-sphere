@@ -175,6 +175,9 @@
                         {
                             <p><strong>Комментарий:</strong> @result.TutorFeedback</p>
                         }
+                        <div class="hero__actions">
+                            <a class="btn btn-ghost" asp-action="ResultDetails" asp-route-id="@result.SubmissionId">Открыть результат</a>
+                        </div>
                     </div>
                 }
                 @if (!Model.Results.Any())
@@ -266,3 +269,4 @@
         }
     </div>
 </section>
+
