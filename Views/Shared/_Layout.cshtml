@@ -10,31 +10,50 @@
 <body>
     <header class="site-header">
         <div class="container site-header__inner">
-            <a class="brand-mark" asp-controller="Home" asp-action="Index">L</a>
-            <div class="site-header__titles">
-                <a asp-controller="Home" asp-action="Index">LiteraSphere</a>
-                <span>Платформа репетитора по русскому языку</span>
+            <div class="site-header__brand-wrap">
+                <a class="brand-mark" asp-controller="Home" asp-action="Index">L</a>
+                <div class="site-header__titles">
+                    <a asp-controller="Home" asp-action="Index">LiteraSphere</a>
+                    <span>Платформа репетитора по русскому языку</span>
+                </div>
             </div>
-            <nav class="site-nav">
-                <a asp-controller="Home" asp-action="Index">Главная</a>
+
+            <nav class="site-nav" aria-label="Основная навигация">
+                <div class="site-nav__primary">
+                    <a asp-controller="Home" asp-action="Index">Главная</a>
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <a asp-controller="Home" asp-action="RedirectToDashboard">Личный кабинет</a>
+                        @if (User.IsInRole("Tutor"))
+                        {
+                            <a asp-controller="Tutor" asp-action="Students">Ученики</a>
+                            <a asp-controller="Tutor" asp-action="Groups">Группы</a>
+                        }
+                    }
+                    else
+                    {
+                        <a asp-area="Identity" asp-page="/Account/Login">Вход</a>
+                    }
+                </div>
+
                 @if (User.Identity.IsAuthenticated)
                 {
-                    <a asp-controller="Home" asp-action="RedirectToDashboard">Личный кабинет</a>
-                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="tips">Полезные советы</a>
-                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="memes">Мемы</a>
-                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="cat-day">Котик дня</a>
-                    <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="quote-day">Цитата дня</a>
-                    @if (User.IsInRole("Tutor"))
-                    {
-                        <a asp-controller="Tutor" asp-action="Students">Ученики</a>
-                    }
+                    <details class="site-nav__more">
+                        <summary>Еще</summary>
+                        <div class="site-nav__dropdown">
+                            <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="tips">Полезные советы</a>
+                            <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="memes">Мемы</a>
+                            <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="cat-day">Котик дня</a>
+                            <a asp-controller="Home" asp-action="RedirectToDashboard" asp-fragment="quote-day">Цитата дня</a>
+                        </div>
+                    </details>
                 }
                 else
                 {
-                    <a asp-area="Identity" asp-page="/Account/Login">Вход</a>
-                    <a asp-area="Identity" asp-page="/Account/Register">Регистрация</a>
+                    <a class="site-nav__register" asp-area="Identity" asp-page="/Account/Register">Регистрация</a>
                 }
             </nav>
+
             <partial name="_LoginPartial" />
         </div>
     </header>

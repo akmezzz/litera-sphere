@@ -17,6 +17,7 @@
                 <span>@examSection.AccentLabel</span>
             </a>
         }
+        <a class="section-square section-square--soft" asp-action="Groups">Группы</a>
         <a class="section-square section-square--soft @(Model.ActiveTab == "submissions" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="submissions">Работы</a>
         <a class="section-square section-square--soft @(Model.ActiveTab == "lessons" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="lessons">Уроки</a>
         <a class="section-square section-square--soft @(Model.ActiveTab == "creative" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="creative">Творчество</a>
@@ -34,6 +35,7 @@
             </div>
             <div class="hero__actions">
                 <a class="btn btn-accent" asp-action="CreateStudent">Новый ученик</a>
+                <a class="btn btn-ghost" asp-action="Groups">Все группы</a>
                 <a class="btn btn-ghost" asp-action="CreateGroup">Новая группа</a>
                 <a class="btn btn-ghost" asp-action="CreateTest">Новый тест</a>
                 <a class="btn btn-ghost" asp-action="CreateCreativeTask">Творческое задание</a>
@@ -285,3 +287,5 @@
         }
     </div>
 </section>
+
+

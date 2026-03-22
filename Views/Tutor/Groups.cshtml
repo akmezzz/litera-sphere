@@ -1,0 +1,51 @@
+@model TutorPlatform.ViewModels.GroupsListViewModel
+@{
+    ViewData["Title"] = "Группы";
+}
+
+<section class="dashboard-header">
+    <div>
+        <span class="eyebrow">Потоки учеников</span>
+        <h1>Все группы</h1>
+        <p>Просматривай состав, ищи нужную группу и сразу переходи в редактирование.</p>
+    </div>
+    <div class="hero__actions">
+        <a class="btn btn-accent" asp-action="CreateGroup">Новая группа</a>
+        <a class="btn btn-ghost" asp-action="Index">Назад в кабинет</a>
+    </div>
+</section>
+
+<section class="form-shell">
+    <form method="get" class="editor-form form-grid">
+        <div>
+            <label for="searchQuery">Поиск</label>
+            <input id="searchQuery" name="searchQuery" value="@Model.SearchQuery" class="form-control" placeholder="Название группы, описание или ученик" />
+        </div>
+        <div class="hero__actions">
+            <button type="submit" class="btn btn-accent">Найти</button>
+        </div>
+    </form>
+</section>
+
+<section class="dashboard-grid">
+    @foreach (var group in Model.Groups)
+    {
+        <article class="panel">
+            <div class="panel__header">
+                <h2>@group.Name</h2>
+                <a class="btn btn-ghost btn-sm" asp-action="EditGroup" asp-route-id="@group.Id">Редактировать</a>
+            </div>
+            <p>@(string.IsNullOrWhiteSpace(group.Description) ? "Описание пока не добавлено." : group.Description)</p>
+            <p class="muted">Учеников: @group.StudentCount | Назначенных тестов: @group.AssignedTestCount</p>
+            <p class="muted">Состав: @(group.StudentNames.Any() ? string.Join(", ", group.StudentNames) : "пока пусто")</p>
+        </article>
+    }
+
+    @if (!Model.Groups.Any())
+    {
+        <article class="panel">
+            <h2>Группы не найдены</h2>
+            <p class="muted">Пока групп нет или поиск ничего не вернул.</p>
+        </article>
+    }
+</section>

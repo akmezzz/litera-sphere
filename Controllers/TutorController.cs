@@ -333,6 +333,52 @@ namespace TutorPlatform.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> Groups(string searchQuery = null)
+        {
+            var tutor = await _userManager.GetUserAsync(User);
+            var normalizedQuery = searchQuery?.Trim();
+
+            var groups = await _dbContext.StudentGroups
+                .AsNoTracking()
+                .Where(group => group.TutorId == tutor.Id)
+                .Include(group => group.Members)
+                    .ThenInclude(member => member.Student)
+                .Include(group => group.Assignments)
+                .OrderBy(group => group.Name)
+                .ToListAsync();
+
+            var groupCards = groups
+                .Select(group => new TutorGroupCardViewModel
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    Description = group.Description,
+                    StudentCount = group.Members.Count,
+                    AssignedTestCount = group.Assignments.Count,
+                    StudentNames = group.Members
+                        .Select(member => string.IsNullOrWhiteSpace(member.Student.FullName) ? member.Student.Email : member.Student.FullName)
+                        .OrderBy(name => name)
+                        .ToList()
+                })
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(normalizedQuery))
+            {
+                groupCards = groupCards
+                    .Where(group => group.Name.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+                        || (!string.IsNullOrWhiteSpace(group.Description) && group.Description.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+                        || group.StudentNames.Any(name => name.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
+
+            return View(new GroupsListViewModel
+            {
+                SearchQuery = normalizedQuery,
+                Groups = groupCards
+            });
+        }
+
+        [HttpGet]
         public async Task<IActionResult> CreateGroup() => View(await BuildCreateGroupModelAsync());
 
         [HttpGet]
@@ -547,7 +593,7 @@ namespace TutorPlatform.Controllers
                 DailyCatImageUrl = $"https://cataas.com/cat?width=720&height=400&seed=tutor-{DateTime.Today:yyyyMMdd}",
                 Sections = sections,
                 Students = students.Select(student => new StudentOptionViewModel { Id = student.Id, Email = student.Email, GradeLabel = student.GradeLabel, Label = BuildStudentLabel(student.FullName, student.Email, student.GradeLabel), GroupNames = student.GroupNames }).ToList(),
-                Groups = groups.Select(group => new TutorGroupCardViewModel { Id = group.Id, Name = group.Name, Description = group.Description, StudentNames = group.Members.Select(member => string.IsNullOrWhiteSpace(member.Student.FullName) ? member.Student.Email : member.Student.FullName).OrderBy(name => name).ToList() }).ToList(),
+                Groups = groups.Select(group => new TutorGroupCardViewModel { Id = group.Id, Name = group.Name, Description = group.Description, StudentCount = group.Members.Count, AssignedTestCount = tests.Count(test => test.Assignments.Any(assignment => assignment.StudentGroupId == group.Id)), StudentNames = group.Members.Select(member => string.IsNullOrWhiteSpace(member.Student.FullName) ? member.Student.Email : member.Student.FullName).OrderBy(name => name).ToList() }).ToList(),
                 Tests = tests.Select(test => new TutorTestCardViewModel { Id = test.Id, Title = test.Title, ExamType = test.ExamType, MechanicType = test.MechanicType, ModuleName = test.ModuleName, IsPublished = test.IsPublished, GroupCount = test.Assignments.Count, SubmissionCount = test.Submissions.Count }).ToList(),
                 RecentSubmissions = submissions.Select(submission => new SubmissionSummaryViewModel { Id = submission.Id, StudentName = string.IsNullOrWhiteSpace(submission.Student.FullName) ? submission.Student.Email : submission.Student.FullName, TestTitle = submission.LearningTest.Title, AutoScore = submission.AutoScore, MaxScore = submission.MaxScore, TutorScore = submission.TutorScore, SubmittedAtUtc = submission.SubmittedAtUtc, NeedsManualReview = submission.NeedsManualReview, IsReviewed = submission.ReviewedAtUtc.HasValue, ExamType = submission.LearningTest.ExamType }).ToList(),
                 Lessons = lessonAssignments.Select(assignment =>
@@ -839,6 +885,8 @@ namespace TutorPlatform.Controllers
         }
     }
 }
+
+
 
 
 

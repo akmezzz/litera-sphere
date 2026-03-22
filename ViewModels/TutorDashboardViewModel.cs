@@ -112,6 +112,8 @@ namespace TutorPlatform.ViewModels
         public int Id { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
+        public int StudentCount { get; set; }
+        public int AssignedTestCount { get; set; }
         public List<string> StudentNames { get; set; } = new List<string>();
     }
 
@@ -140,6 +142,12 @@ namespace TutorPlatform.ViewModels
     {
         public string SearchQuery { get; set; }
         public List<StudentCardViewModel> Students { get; set; } = new List<StudentCardViewModel>();
+    }
+
+    public class GroupsListViewModel
+    {
+        public string SearchQuery { get; set; }
+        public List<TutorGroupCardViewModel> Groups { get; set; } = new List<TutorGroupCardViewModel>();
     }
 
     public class StudentCardViewModel
@@ -446,6 +454,7 @@ namespace TutorPlatform.ViewModels
         public decimal MaxPoints { get; set; } = 1;
     }
 }
+
 
 
 
