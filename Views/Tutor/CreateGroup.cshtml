@@ -1,32 +1,91 @@
 @model TutorPlatform.ViewModels.CreateGroupViewModel
 @{
     ViewData["Title"] = Model.FormTitle;
+    var selectedIds = Model.StudentIds?.ToHashSet() ?? new HashSet<string>();
+    var availableStudents = Model.AvailableStudents.Where(student => !selectedIds.Contains(student.Id)).ToList();
+    var selectedStudents = Model.AvailableStudents.Where(student => selectedIds.Contains(student.Id)).ToList();
 }
 
-<section class="form-shell">
+<section class="form-shell form-shell--wide">
     <div class="section-heading">
         <span class="eyebrow">Организация учеников</span>
         <h1>@Model.FormTitle</h1>
+        <p class="muted">Слева весь список учеников, справа состав группы. Добавляй и убирай без длинного выпадающего списка.</p>
     </div>
 
-    <form method="post" class="editor-form">
+    <form method="post" class="editor-form js-group-transfer-form">
         @Html.AntiForgeryToken()
         <input asp-for="GroupId" type="hidden" />
         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-        <label asp-for="Name"></label>
-        <input asp-for="Name" class="form-control" />
-        <span asp-validation-for="Name" class="text-danger"></span>
+        <div class="form-grid">
+            <div>
+                <label asp-for="Name"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div>
+                <label asp-for="Description"></label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+        </div>
 
-        <label asp-for="Description"></label>
-        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-        <span asp-validation-for="Description" class="text-danger"></span>
+        <div class="student-transfer">
+            <div class="student-transfer__column">
+                <div class="panel panel--nested student-transfer__panel">
+                    <div class="panel__header">
+                        <h2>Все ученики</h2>
+                        <span>@availableStudents.Count</span>
+                    </div>
+                    <input type="text" class="form-control js-transfer-search" data-target="available" placeholder="Поиск по имени, email, классу" />
+                    <div class="student-transfer__list js-transfer-list" data-list="available">
+                        @foreach (var student in availableStudents)
+                        {
+                            <label class="student-transfer__item js-transfer-item" data-search="@student.Label.ToLowerInvariant()">
+                                <input type="checkbox" value="@student.Id" />
+                                <span>
+                                    <strong>@student.Label</strong>
+                                    <small>@(student.GroupNames.Any() ? string.Join(", ", student.GroupNames) : "без групп")</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
 
-        <label asp-for="StudentIds"></label>
-        <select asp-for="StudentIds" class="form-control" multiple size="10">
-            @foreach (var student in Model.AvailableStudents)
+            <div class="student-transfer__actions">
+                <button type="button" class="btn btn-accent js-transfer-btn" data-direction="add">Добавить →</button>
+                <button type="button" class="btn btn-ghost js-transfer-btn" data-direction="remove">← Убрать</button>
+            </div>
+
+            <div class="student-transfer__column">
+                <div class="panel panel--nested student-transfer__panel">
+                    <div class="panel__header">
+                        <h2>Ученики в группе</h2>
+                        <span class="js-selected-count">@selectedStudents.Count</span>
+                    </div>
+                    <input type="text" class="form-control js-transfer-search" data-target="selected" placeholder="Быстрый поиск по участникам" />
+                    <div class="student-transfer__list js-transfer-list" data-list="selected">
+                        @foreach (var student in selectedStudents)
+                        {
+                            <label class="student-transfer__item js-transfer-item" data-search="@student.Label.ToLowerInvariant()">
+                                <input type="checkbox" value="@student.Id" />
+                                <span>
+                                    <strong>@student.Label</strong>
+                                    <small>@(student.GroupNames.Any() ? string.Join(", ", student.GroupNames) : "без групп")</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <select asp-for="StudentIds" class="d-none js-selected-students" multiple>
+            @foreach (var student in selectedStudents)
             {
-                <option value="@student.Id">@student.Label</option>
+                <option value="@student.Id" selected="selected">@student.Label</option>
             }
         </select>
 

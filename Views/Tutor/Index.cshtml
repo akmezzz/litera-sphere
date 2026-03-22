@@ -5,16 +5,24 @@
 
 <section class="dashboard-hero-grid">
     <aside class="section-sidebar">
-        <p class="eyebrow">Разделы</p>
+        <p class="eyebrow">Вкладки</p>
+        <a class="section-square @(Model.ActiveTab == "overview" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="overview">
+            <strong>Обзор</strong>
+            <span>Кабинет</span>
+        </a>
         @foreach (var examSection in Model.Sections)
         {
-            <a class="section-square" href="#@(examSection.Key)">
+            <a class="section-square @(Model.ActiveSection?.Key == examSection.Key ? "section-square--active" : null)" asp-action="Section" asp-route-key="@examSection.Key">
                 <strong>@examSection.Title</strong>
                 <span>@examSection.AccentLabel</span>
             </a>
         }
-        <a class="section-square section-square--soft" href="#lessons">Уроки</a>
-        <a class="section-square section-square--soft" href="#memes">Мемы</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "submissions" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="submissions">Работы</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "lessons" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="lessons">Уроки</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "creative" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="creative">Творчество</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "tips" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="tips">Советы</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "questions" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="questions">Вопросы</a>
+        <a class="section-square section-square--soft @(Model.ActiveTab == "memes" ? "section-square--active" : null)" asp-action="Index" asp-route-tab="memes">Мемы</a>
     </aside>
 
     <div class="dashboard-main-stack">
@@ -22,7 +30,7 @@
             <div>
                 <span class="eyebrow">Кабинет репетитора</span>
                 <h1>@Model.TutorName</h1>
-                <p>Здесь теперь разведены треки ЕГЭ и ОГЭ, уроки, полезные советы, творческие задания, проверка письменной части и вопросы учеников.</p>
+                <p>Разделы вынесены на отдельные страницы, чтобы работа с платформой была чище и спокойнее.</p>
             </div>
             <div class="hero__actions">
                 <a class="btn btn-accent" asp-action="CreateStudent">Новый ученик</a>
@@ -37,108 +45,82 @@
             <div class="status-banner">@TempData["StatusMessage"]</div>
         }
 
-        <section class="cards cards--stats">
-            <article class="metric-card">
-                <span>Учеников</span>
-                <strong>@Model.TotalStudentsCount</strong>
-                <small>в активной базе</small>
-            </article>
-            <article class="metric-card">
-                <span>Групп</span>
-                <strong>@Model.TotalGroupsCount</strong>
-                <small>по потокам подготовки</small>
-            </article>
-            <article class="metric-card">
-                <span>Уроков</span>
-                <strong>@Model.TotalLessonsCount</strong>
-                <small>под контролем репетитора</small>
-            </article>
-            <article class="metric-card">
-                <span>Новых работ</span>
-                <strong>@Model.PendingReviewCount</strong>
-                <small>ожидают ручной проверки</small>
-            </article>
-        </section>
-
-        <section class="quote-panel" id="quote-day">
-            <div>
-                <span class="eyebrow">Цитата дня</span>
-                <p>@Model.DailyQuote</p>
-            </div>
-            <div class="quote-panel__image" id="cat-day">
-                <img src="@Model.DailyCatImageUrl" alt="Котик дня" />
-            </div>
-        </section>
-
-        @foreach (var examSection in Model.Sections)
+        @if (Model.ActiveTab == "overview")
         {
-            <section class="panel panel--section" id="@(examSection.Key)">
-                <div class="panel__header">
-                    <div>
-                        <span class="eyebrow">Раздел</span>
-                        <h2>@examSection.Title</h2>
-                        <p class="muted">@examSection.Description</p>
-                    </div>
-                    <span class="tag">@examSection.AccentLabel</span>
+            <section class="cards cards--stats">
+                <article class="metric-card">
+                    <span>Учеников</span>
+                    <strong>@Model.TotalStudentsCount</strong>
+                    <small>в активной базе</small>
+                </article>
+                <article class="metric-card">
+                    <span>Групп</span>
+                    <strong>@Model.TotalGroupsCount</strong>
+                    <small>по потокам подготовки</small>
+                </article>
+                <article class="metric-card">
+                    <span>Уроков</span>
+                    <strong>@Model.TotalLessonsCount</strong>
+                    <small>под контролем репетитора</small>
+                </article>
+                <article class="metric-card">
+                    <span>Новых работ</span>
+                    <strong>@Model.PendingReviewCount</strong>
+                    <small>ожидают ручной проверки</small>
+                </article>
+            </section>
+
+            <section class="quote-panel">
+                <div>
+                    <span class="eyebrow">Цитата дня</span>
+                    <p>@Model.DailyQuote</p>
                 </div>
-                <div class="cards cards--compact">
-                    <article class="list-card">
-                        <h3>Пробники</h3>
-                        <p class="muted">@examSection.MockExamCount активных сценариев</p>
-                    </article>
-                    <article class="list-card">
-                        <h3>Типовые задания</h3>
-                        <p class="muted">@examSection.PracticeCount упражнений по номерам</p>
-                    </article>
-                    <article class="list-card">
-                        <h3>Уроки</h3>
-                        <p class="muted">@examSection.LessonCount конспектов и практик</p>
-                    </article>
-                </div>
-                <div class="section-columns">
-                    <div class="panel panel--nested">
-                        <h3>Типовые задания по номерам</h3>
-                        <div class="practice-lines">
-                            @foreach (var task in examSection.PracticeTasks.Take(examSection.Title == "ЕГЭ" ? 8 : 6))
-                            {
-                                <div class="practice-line">
-                                    <strong>@task.TaskNumber</strong>
-                                    <span>@task.Label</span>
-                                    <em>@task.TaskCount заданий</em>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                    <div class="panel panel--nested">
-                        <h3>Материалы в разделе</h3>
-                        @if (examSection.FeaturedTests.Any())
-                        {
-                            @foreach (var test in examSection.FeaturedTests)
-                            {
-                                <div class="list-card">
-                                    <div class="badge-row">
-                                        <span class="tag">@test.MechanicType</span>
-                                        @if (test.IsMockExam)
-                                        {
-                                            <span class="tag tag--warning">Пробник</span>
-                                        }
-                                    </div>
-                                    <h3>@test.Title</h3>
-                                    <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <p class="muted">Для этого раздела пока нет опубликованных материалов.</p>
-                        }
-                    </div>
+                <div class="quote-panel__image">
+                    <img src="@Model.DailyCatImageUrl" alt="Котик дня" />
                 </div>
             </section>
-        }
 
-        <section class="dashboard-grid">
-            <article class="panel">
+            <section class="dashboard-grid">
+                <article class="panel">
+                    <div class="panel__header">
+                        <h2>Главные блоки подготовки</h2>
+                        <span>@Model.Sections.Count</span>
+                    </div>
+                    @foreach (var examSection in Model.Sections)
+                    {
+                        <a class="list-card list-card--link" asp-action="Section" asp-route-key="@examSection.Key">
+                            <div class="badge-row">
+                                <span class="tag">@examSection.Title</span>
+                                <span class="tag">@examSection.AccentLabel</span>
+                            </div>
+                            <h3>@examSection.Description</h3>
+                            <p class="muted">Подразделов: @examSection.Subsections.Count | Пробников: @examSection.MockExamCount</p>
+                        </a>
+                    }
+                </article>
+
+                <article class="panel">
+                    <div class="panel__header">
+                        <h2>Мемы с котиками</h2>
+                        <a class="btn btn-ghost" asp-action="Index" asp-route-tab="memes">Открыть все</a>
+                    </div>
+                    @foreach (var meme in Model.Memes.Take(2))
+                    {
+                        <div class="meme-card">
+                            <img src="@meme.ImageUrl" alt="@meme.Title" />
+                            <div>
+                                <h3>@meme.Title</h3>
+                                <p>@meme.Caption</p>
+                                <p class="muted">Лайков у учеников: @meme.LikeCount</p>
+                            </div>
+                        </div>
+                    }
+                </article>
+            </section>
+        }
+        else if (Model.ActiveTab == "submissions")
+        {
+            <section class="panel">
                 <div class="panel__header">
                     <h2>Работы и выставленные баллы</h2>
                     <span>@Model.RecentSubmissions.Count</span>
@@ -164,9 +146,15 @@
                         <a class="btn btn-accent" asp-action="ReviewSubmission" asp-route-id="@submission.Id">Проверить</a>
                     </div>
                 }
-            </article>
-
-            <article class="panel" id="lessons">
+                @if (!Model.RecentSubmissions.Any())
+                {
+                    <p class="muted">Пока нет работ для проверки.</p>
+                }
+            </section>
+        }
+        else if (Model.ActiveTab == "lessons")
+        {
+            <section class="panel">
                 <div class="panel__header">
                     <h2>Уроки и конспекты</h2>
                     <span>@Model.Lessons.Count</span>
@@ -189,13 +177,17 @@
                         </form>
                     </div>
                 }
-            </article>
-        </section>
-
-        <section class="dashboard-grid">
-            <article class="panel">
+                @if (!Model.Lessons.Any())
+                {
+                    <p class="muted">Пока уроки не добавлены.</p>
+                }
+            </section>
+        }
+        else if (Model.ActiveTab == "creative")
+        {
+            <section class="panel">
                 <div class="panel__header">
-                    <h2>Творческие идеи</h2>
+                    <h2>Творческие задания</h2>
                     <span>@Model.TotalCreativeTaskCount</span>
                 </div>
                 @foreach (var idea in Model.CreativeIdeas)
@@ -208,9 +200,15 @@
                         <p>@idea.Prompt</p>
                     </div>
                 }
-            </article>
-
-            <article class="panel" id="tips">
+                @if (!Model.CreativeIdeas.Any())
+                {
+                    <p class="muted">Пока творческие задания не созданы.</p>
+                }
+            </section>
+        }
+        else if (Model.ActiveTab == "tips")
+        {
+            <section class="panel">
                 <div class="panel__header">
                     <h2>Полезные советы</h2>
                     <span>@Model.Tips.Count</span>
@@ -225,11 +223,15 @@
                         <p>@tip.Description</p>
                     </div>
                 }
-            </article>
-        </section>
-
-        <section class="dashboard-grid">
-            <article class="panel">
+                @if (!Model.Tips.Any())
+                {
+                    <p class="muted">Пока советы не добавлены.</p>
+                }
+            </section>
+        }
+        else if (Model.ActiveTab == "questions")
+        {
+            <section class="panel">
                 <div class="panel__header">
                     <h2>Вопросы от учеников</h2>
                     <span>@Model.StudentQuestions.Count</span>
@@ -255,9 +257,15 @@
                         }
                     </div>
                 }
-            </article>
-
-            <article class="panel" id="memes">
+                @if (!Model.StudentQuestions.Any())
+                {
+                    <p class="muted">Пока вопросов от учеников нет.</p>
+                }
+            </section>
+        }
+        else if (Model.ActiveTab == "memes")
+        {
+            <section class="panel">
                 <div class="panel__header">
                     <h2>Мемы и расслабление</h2>
                     <span>@Model.Memes.Count</span>
@@ -273,9 +281,7 @@
                         </div>
                     </div>
                 }
-            </article>
-        </section>
+            </section>
+        }
     </div>
 </section>
-
-

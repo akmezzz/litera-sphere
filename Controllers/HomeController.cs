@@ -20,14 +20,14 @@ namespace TutorPlatform.Controllers
         }
 
         [Authorize]
-        public IActionResult RedirectToDashboard()
+        public IActionResult RedirectToDashboard(string tab = null)
         {
             if (User.IsInRole(PlatformRoles.Tutor))
             {
-                return RedirectToAction("Index", "Tutor");
+                return RedirectToAction("Index", "Tutor", new { tab });
             }
 
-            return RedirectToAction("Index", "Student");
+            return RedirectToAction("Index", "Student", new { tab });
         }
     }
 }

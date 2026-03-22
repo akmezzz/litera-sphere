@@ -1,0 +1,67 @@
+@model TutorPlatform.ViewModels.StudentDashboardViewModel
+@{
+    ViewData["Title"] = Model.ActiveSection?.Title ?? "Раздел";
+    var currentSection = Model.ActiveSection;
+}
+
+<section class="dashboard-hero-grid">
+    <aside class="section-sidebar">
+        <p class="eyebrow">Вкладки</p>
+        <a class="section-square" asp-action="Index" asp-route-tab="overview">
+            <strong>Обзор</strong>
+            <span>Кабинет</span>
+        </a>
+        @foreach (var examSection in Model.Sections)
+        {
+            <a class="section-square @(currentSection?.Key == examSection.Key ? "section-square--active" : null)" asp-action="Section" asp-route-key="@examSection.Key">
+                <strong>@examSection.Title</strong>
+                <span>@examSection.AccentLabel</span>
+            </a>
+        }
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="homework">Домашка</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="results">Результаты</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="tips">Советы</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="questions">Вопросы</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="memes">Мемы</a>
+    </aside>
+
+    <div class="dashboard-main-stack">
+        <section class="dashboard-header dashboard-header--rich">
+            <div>
+                <span class="eyebrow">Раздел подготовки</span>
+                <h1>@currentSection?.Title</h1>
+                <p>@currentSection?.Description</p>
+            </div>
+            <div class="hero__actions hero__actions--stacked">
+                <span class="tag">Пробников: @currentSection?.MockExamCount</span>
+                <span class="tag">Практика: @currentSection?.PracticeCount</span>
+                <span class="tag">Уроков: @currentSection?.LessonCount</span>
+            </div>
+        </section>
+
+        <section class="panel panel--section">
+            <div class="panel__header">
+                <div>
+                    <span class="eyebrow">Подразделы</span>
+                    <h2>Открой нужный подраздел</h2>
+                </div>
+                <a class="btn btn-ghost" asp-action="Index" asp-route-tab="overview">Назад в обзор</a>
+            </div>
+
+            <div class="cards cards--compact">
+                @foreach (var subsection in currentSection?.Subsections ?? new List<TutorPlatform.ViewModels.DashboardSectionViewModel>())
+                {
+                    <a class="list-card list-card--link" asp-action="Subsection" asp-route-key="@subsection.Key">
+                        <div class="badge-row">
+                            <span class="tag">@subsection.Title</span>
+                            <span class="tag">@subsection.AccentLabel</span>
+                        </div>
+                        <h3>@subsection.Description</h3>
+                        <p class="muted">Пробников: @subsection.MockExamCount | Практика: @subsection.PracticeCount | Уроков: @subsection.LessonCount</p>
+                    </a>
+                }
+            </div>
+        </section>
+    </div>
+</section>
+

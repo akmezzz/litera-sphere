@@ -1,6 +1,11 @@
 @model TutorPlatform.ViewModels.HomeIndexViewModel
 @{
     ViewData["Title"] = "LiteraSphere";
+    var tracks = new[]
+    {
+        new { Title = "ЕГЭ и итоговое сочинение", Description = "Пробники ЕГЭ, сочинение, аргументация и литературные комментарии в одном блоке.", Tab = "ege-writing" },
+        new { Title = "ОГЭ и устное собеседование", Description = "Тестовая часть, изложение, чтение вслух и устные тренировки внутри одного блока.", Tab = "oge-oral" }
+    };
 }
 
 <section class="hero">
@@ -41,41 +46,27 @@
         </div>
         <div class="metric-card">
             <span>Потоки</span>
-            <strong>ОГЭ / ЕГЭ</strong>
-            <small>Отдельная логика пробников и таймеров</small>
+            <strong>2</strong>
+            <small>11 класс и 9 класс</small>
         </div>
     </div>
 </section>
 
 <section class="section-grid">
     <div class="section-heading">
-        <span class="eyebrow">Контентная архитектура</span>
-        <h2>Модули платформы</h2>
-    </div>
-    <div class="cards">
-        @foreach (var module in Model.FeatureModules)
-        {
-            <article class="info-card">
-                <p class="card-kicker">@module.Subtitle</p>
-                <h3>@module.Title</h3>
-                <p>@module.Description</p>
-            </article>
-        }
-    </div>
-</section>
-
-<section class="section-grid">
-    <div class="section-heading">
-        <span class="eyebrow">Контрольные тесты</span>
-        <h2>Логика обработки пробников</h2>
+        <span class="eyebrow">Основные разделы</span>
+        <h2>Перейти в нужный трек подготовки</h2>
     </div>
     <div class="cards cards--compact">
-        @foreach (var exam in Model.ExamTracks)
+        @foreach (var track in tracks)
         {
-            <article class="info-card info-card--dark">
-                <h3>@exam.Title</h3>
-                <p>@exam.Description</p>
-            </article>
+            var href = User.Identity.IsAuthenticated
+                ? Url.Action("RedirectToDashboard", "Home", new { tab = track.Tab })
+                : Url.Page("/Account/Login", new { area = "Identity" });
+            <a class="info-card info-card--dark info-card--link" href="@href">
+                <h3>@track.Title</h3>
+                <p>@track.Description</p>
+            </a>
         }
     </div>
 </section>

@@ -25,7 +25,7 @@ namespace TutorPlatform.Controllers
             _userManager = userManager;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string tab = null)
         {
             var student = await _userManager.GetUserAsync(User);
             if (student.PlatformRole != PlatformRoles.Student)
@@ -33,6 +33,52 @@ namespace TutorPlatform.Controllers
                 return RedirectToAction("Index", "Tutor");
             }
 
+            var viewModel = await BuildStudentDashboardAsync(student, tab);
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Section(string key)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            if (student.PlatformRole != PlatformRoles.Student)
+            {
+                return RedirectToAction("Index", "Tutor");
+            }
+
+            var viewModel = await BuildStudentDashboardAsync(student);
+            viewModel.ActiveSection = viewModel.Sections.FirstOrDefault(section => section.Key == SanitizeKey(key));
+            if (viewModel.ActiveSection == null)
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(viewModel);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Subsection(string key)
+        {
+            var student = await _userManager.GetUserAsync(User);
+            if (student.PlatformRole != PlatformRoles.Student)
+            {
+                return RedirectToAction("Index", "Tutor");
+            }
+
+            var viewModel = await BuildStudentDashboardAsync(student);
+            var normalizedKey = SanitizeKey(key);
+            viewModel.ActiveSection = viewModel.Sections.FirstOrDefault(section => section.Subsections.Any(subsection => subsection.Key == normalizedKey));
+            viewModel.ActiveSubsection = viewModel.ActiveSection?.Subsections.FirstOrDefault(subsection => subsection.Key == normalizedKey);
+            if (viewModel.ActiveSection == null || viewModel.ActiveSubsection == null)
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View(viewModel);
+        }
+
+        private async Task<StudentDashboardViewModel> BuildStudentDashboardAsync(ApplicationUser student, string tab = null)
+        {
             var assignments = await _dbContext.TestAssignments
                 .AsNoTracking()
                 .Where(assignment => assignment.StudentGroup.Members.Any(member => member.StudentId == student.Id))
@@ -71,18 +117,17 @@ namespace TutorPlatform.Controllers
                 .Where(progress => progress.StudentId == student.Id)
                 .ToListAsync();
 
-            var relevantExamTypes = assignments.Select(assignment => assignment.LearningTest.ExamType)
-                .Concat(lessonAssignments.Select(assignment => assignment.Lesson.ExamType))
-                .Where(examType => !string.IsNullOrWhiteSpace(examType))
-                .Distinct()
-                .ToList();
+            var relevantExamTypes = ResolveStudentExamTypes(groups, student.GradeLabel,
+                assignments.Select(assignment => assignment.LearningTest.ExamType)
+                    .Concat(lessonAssignments.Select(assignment => assignment.Lesson.ExamType))
+                    .Concat(submissions.Select(submission => submission.LearningTest.ExamType))
+                    .Where(examType => !string.IsNullOrWhiteSpace(examType))
+                    .Distinct()
+                    .ToList());
 
-            if (!relevantExamTypes.Any())
-            {
-                relevantExamTypes = student.GradeLabel != null && student.GradeLabel.Contains("9", StringComparison.OrdinalIgnoreCase)
-                    ? new List<string> { "ОГЭ", "Устное собеседование" }
-                    : new List<string> { "ЕГЭ", "Итоговое сочинение" };
-            }
+            assignments = assignments.Where(assignment => relevantExamTypes.Contains(assignment.LearningTest.ExamType)).ToList();
+            submissions = submissions.Where(submission => relevantExamTypes.Contains(submission.LearningTest.ExamType)).ToList();
+            lessonAssignments = lessonAssignments.Where(assignment => relevantExamTypes.Contains(assignment.Lesson.ExamType)).ToList();
 
             var submittedIds = submissions.Select(submission => submission.LearningTestId).ToHashSet();
             var groupedAssignments = assignments
@@ -126,21 +171,8 @@ namespace TutorPlatform.Controllers
                 };
             }).ToList();
 
-            var sections = relevantExamTypes.Select(examType => new DashboardSectionViewModel
-            {
-                Key = SanitizeKey(examType),
-                Title = examType,
-                Description = PlatformCatalog.GetExamDescription(examType),
-                AccentLabel = examType == "ЕГЭ" ? "3:30" : examType == "ОГЭ" ? "3:55" : "Трек",
-                MockExamCount = assignedTests.Count(test => test.ExamType == examType && test.IsMockExam),
-                PracticeCount = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType).Sum(item => item.TaskCount),
-                LessonCount = lessonCards.Count(lesson => lesson.ExamType == examType),
-                PracticeTasks = PlatformCatalog.BuildPracticeTasks(examType == "Устное собеседование" ? "ОГЭ" : examType)
-                    .Take(examType == "ЕГЭ" ? 26 : 12)
-                    .Select(item => new PracticeTaskLineViewModel { TaskNumber = item.TaskNumber, Label = item.Label, TaskCount = item.TaskCount })
-                    .ToList(),
-                FeaturedTests = assignedTests.Where(test => test.ExamType == examType).Take(6).ToList()
-            }).ToList();
+            var leafSections = relevantExamTypes.Select(examType => BuildLeafSection(examType, assignedTests, lessonCards)).ToList();
+            var sections = BuildGroupedSections(leafSections);
 
             var tips = await _dbContext.StudyTips
                 .AsNoTracking()
@@ -176,8 +208,14 @@ namespace TutorPlatform.Controllers
                 + lessonCards.Count(lesson => lesson.IsCompleted) * 25
                 + lessonCards.Count(lesson => !lesson.IsCompleted) * 10;
 
+            var availableTabs = sections.Select(section => section.Key)
+                .Concat(new[] { "overview", "homework", "results", "tips", "questions", "memes" })
+                .Distinct()
+                .ToList();
+
             var viewModel = new StudentDashboardViewModel
             {
+                ActiveTab = NormalizeTab(tab, availableTabs),
                 StudentName = string.IsNullOrWhiteSpace(student.FullName) ? student.Email : student.FullName,
                 GradeLabel = string.IsNullOrWhiteSpace(student.GradeLabel) ? "класс не указан" : student.GradeLabel,
                 GroupNames = groups,
@@ -218,7 +256,7 @@ namespace TutorPlatform.Controllers
                 }).ToList()
             };
 
-            return View(viewModel);
+            return viewModel;
         }
 
         [HttpPost]
@@ -445,5 +483,116 @@ namespace TutorPlatform.Controllers
         {
             return (value ?? string.Empty).ToLowerInvariant().Replace(" ", "-");
         }
+
+        private static string NormalizeTab(string value, IEnumerable<string> allowedTabs)
+        {
+            var normalized = string.IsNullOrWhiteSpace(value) ? "overview" : SanitizeKey(value);
+            return allowedTabs.Contains(normalized) ? normalized : "overview";
+        }
+
+        private static List<string> ResolveStudentExamTypes(List<string> groups, string gradeLabel, List<string> fallbackExamTypes)
+        {
+            var resolved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var groupText = string.Join(" ", groups ?? new List<string>());
+
+            if (groupText.Contains("ОГЭ", StringComparison.OrdinalIgnoreCase) || groupText.Contains("9", StringComparison.OrdinalIgnoreCase))
+            {
+                resolved.Add("ОГЭ");
+                resolved.Add("Устное собеседование");
+            }
+
+            if (groupText.Contains("ЕГЭ", StringComparison.OrdinalIgnoreCase)
+                || groupText.Contains("11", StringComparison.OrdinalIgnoreCase)
+                || groupText.Contains("Итоговое", StringComparison.OrdinalIgnoreCase))
+            {
+                resolved.Add("ЕГЭ");
+                resolved.Add("Итоговое сочинение");
+            }
+
+            if (!resolved.Any() && !string.IsNullOrWhiteSpace(gradeLabel))
+            {
+                if (gradeLabel.Contains("9", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolved.Add("ОГЭ");
+                    resolved.Add("Устное собеседование");
+                }
+                else if (gradeLabel.Contains("11", StringComparison.OrdinalIgnoreCase))
+                {
+                    resolved.Add("ЕГЭ");
+                    resolved.Add("Итоговое сочинение");
+                }
+            }
+
+            if (!resolved.Any())
+            {
+                foreach (var examType in fallbackExamTypes)
+                {
+                    resolved.Add(examType);
+                }
+            }
+
+            return resolved.ToList();
+        }
+
+        private static DashboardSectionViewModel BuildLeafSection(string examType, List<StudentAssignedTestViewModel> assignedTests, List<LessonCardViewModel> lessonCards)
+        {
+            var practiceExamType = examType == "Устное собеседование" ? "ОГЭ" : examType;
+            return new DashboardSectionViewModel
+            {
+                Key = SanitizeKey(examType),
+                Title = examType,
+                Description = PlatformCatalog.GetExamDescription(examType),
+                AccentLabel = examType == "ЕГЭ" ? "3:30" : examType == "ОГЭ" ? "3:55" : "Подраздел",
+                MockExamCount = assignedTests.Count(test => test.ExamType == examType && test.IsMockExam),
+                PracticeCount = PlatformCatalog.BuildPracticeTasks(practiceExamType).Sum(item => item.TaskCount),
+                LessonCount = lessonCards.Count(lesson => lesson.ExamType == examType),
+                PracticeTasks = PlatformCatalog.BuildPracticeTasks(practiceExamType)
+                    .Take(practiceExamType == "ЕГЭ" ? 26 : 12)
+                    .Select(item => new PracticeTaskLineViewModel { TaskNumber = item.TaskNumber, Label = item.Label, TaskCount = item.TaskCount })
+                    .ToList(),
+                FeaturedTests = assignedTests.Where(test => test.ExamType == examType).Take(6).ToList()
+            };
+        }
+
+        private static List<DashboardSectionViewModel> BuildGroupedSections(List<DashboardSectionViewModel> leafSections)
+        {
+            var groups = new[]
+            {
+                new { Key = "ege-writing", Title = "ЕГЭ и итоговое сочинение", Description = "Пробники ЕГЭ, типовые задания, сочинение и аргументация в одном треке.", Accent = "11 класс", Members = new[] { "ЕГЭ", "Итоговое сочинение" } },
+                new { Key = "oge-oral", Title = "ОГЭ и устное собеседование", Description = "Тестовая часть ОГЭ, изложение, устное чтение и дикторские практики в одном треке.", Accent = "9 класс", Members = new[] { "ОГЭ", "Устное собеседование" } }
+            };
+
+            return groups
+                .Select(group =>
+                {
+                    var subsections = leafSections.Where(section => group.Members.Contains(section.Title)).ToList();
+                    if (!subsections.Any())
+                    {
+                        return null;
+                    }
+
+                    return new DashboardSectionViewModel
+                    {
+                        Key = group.Key,
+                        Title = group.Title,
+                        Description = group.Description,
+                        AccentLabel = group.Accent,
+                        MockExamCount = subsections.Sum(section => section.MockExamCount),
+                        PracticeCount = subsections.Sum(section => section.PracticeCount),
+                        LessonCount = subsections.Sum(section => section.LessonCount),
+                        FeaturedTests = subsections.SelectMany(section => section.FeaturedTests).Take(8).ToList(),
+                        Subsections = subsections
+                    };
+                })
+                .Where(section => section != null)
+                .ToList();
+        }
     }
 }
+
+
+
+
+
+
+

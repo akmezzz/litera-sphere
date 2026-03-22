@@ -6,6 +6,7 @@ namespace TutorPlatform.ViewModels
 {
     public class StudentDashboardViewModel
     {
+        public string ActiveTab { get; set; } = "overview";
         public string StudentName { get; set; }
         public string GradeLabel { get; set; }
         public string DailyQuote { get; set; }
@@ -15,6 +16,8 @@ namespace TutorPlatform.ViewModels
         public int CompletedTestCount { get; set; }
         public int LikedMemesCount { get; set; }
         public List<string> GroupNames { get; set; } = new List<string>();
+        public DashboardSectionViewModel ActiveSection { get; set; }
+        public DashboardSectionViewModel ActiveSubsection { get; set; }
         public List<DashboardSectionViewModel> Sections { get; set; } = new List<DashboardSectionViewModel>();
         public List<StudentAssignedTestViewModel> AssignedTests { get; set; } = new List<StudentAssignedTestViewModel>();
         public List<StudentResultViewModel> Results { get; set; } = new List<StudentResultViewModel>();
@@ -103,3 +106,8 @@ namespace TutorPlatform.ViewModels
         public string Message { get; set; }
     }
 }
+
+
+
+
+

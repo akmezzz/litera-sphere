@@ -7,6 +7,7 @@ namespace TutorPlatform.ViewModels
 {
     public class TutorDashboardViewModel
     {
+        public string ActiveTab { get; set; } = "overview";
         public string TutorName { get; set; }
         public int PendingReviewCount { get; set; }
         public int TotalStudentsCount { get; set; }
@@ -15,6 +16,8 @@ namespace TutorPlatform.ViewModels
         public int TotalCreativeTaskCount { get; set; }
         public string DailyQuote { get; set; }
         public string DailyCatImageUrl { get; set; }
+        public DashboardSectionViewModel ActiveSection { get; set; }
+        public DashboardSectionViewModel ActiveSubsection { get; set; }
         public List<DashboardSectionViewModel> Sections { get; set; } = new List<DashboardSectionViewModel>();
         public List<TutorGroupCardViewModel> Groups { get; set; } = new List<TutorGroupCardViewModel>();
         public List<TutorTestCardViewModel> Tests { get; set; } = new List<TutorTestCardViewModel>();
@@ -38,6 +41,8 @@ namespace TutorPlatform.ViewModels
         public int LessonCount { get; set; }
         public List<PracticeTaskLineViewModel> PracticeTasks { get; set; } = new List<PracticeTaskLineViewModel>();
         public List<StudentAssignedTestViewModel> FeaturedTests { get; set; } = new List<StudentAssignedTestViewModel>();
+        public List<DashboardSectionViewModel> Subsections { get; set; } = new List<DashboardSectionViewModel>();
+        public bool HasSubsections => Subsections.Any();
     }
 
     public class PracticeTaskLineViewModel
@@ -409,3 +414,9 @@ namespace TutorPlatform.ViewModels
         public decimal MaxPoints { get; set; } = 1;
     }
 }
+
+
+
+
+
+

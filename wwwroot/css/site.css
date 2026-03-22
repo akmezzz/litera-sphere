@@ -521,3 +521,100 @@ textarea.form-control {
         grid-template-columns: 1fr;
     }
 }
+
+.info-card--link {
+    display: block;
+    text-decoration: none;
+    transition: transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+}
+
+.info-card--link:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 22px 44px rgba(21, 50, 58, 0.22);
+    opacity: .98;
+}
+
+.section-square--active {
+    background: linear-gradient(180deg, rgba(180, 79, 46, 0.16), rgba(214, 169, 75, 0.18));
+    border-color: rgba(180, 79, 46, 0.26);
+}
+
+.list-card--link {
+    display: block;
+    text-decoration: none;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.list-card--link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(54, 36, 21, 0.12);
+}
+
+.student-transfer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 180px minmax(0, 1fr);
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.student-transfer__column {
+    min-width: 0;
+}
+
+.student-transfer__actions {
+    display: flex;
+    flex-direction: column;
+    gap: .75rem;
+    justify-content: center;
+}
+
+.student-transfer__panel {
+    height: 100%;
+}
+
+.student-transfer__list {
+    display: grid;
+    gap: .75rem;
+    margin-top: 1rem;
+    max-height: 460px;
+    overflow-y: auto;
+    padding-right: .25rem;
+}
+
+.student-transfer__item {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: .75rem;
+    align-items: start;
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.72);
+    padding: .9rem 1rem;
+    cursor: pointer;
+}
+
+.student-transfer__item strong {
+    display: block;
+}
+
+.student-transfer__item small {
+    display: block;
+    color: var(--ink-soft);
+    margin-top: .2rem;
+}
+
+@media (max-width: 960px) {
+    .student-transfer {
+        grid-template-columns: 1fr;
+    }
+
+    .student-transfer__actions {
+        flex-direction: row;
+    }
+}
+
+.subsection-block {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--line);
+}

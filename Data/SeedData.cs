@@ -50,11 +50,93 @@ namespace TutorPlatform.Data
             await EnsureMembershipAsync(dbContext, writingGroup.Id, students[2].Id);
             await dbContext.SaveChangesAsync();
 
-            await SeedTipsAsync(dbContext);
+            await RemoveLegacySeededContentAsync(dbContext, tutor.Id);
             await SeedMemesAsync(dbContext);
-            await SeedLessonsAsync(dbContext, ogeGroup.Id, egeGroup.Id, writingGroup.Id);
-            await SeedTestsAsync(dbContext, tutor.Id, ogeGroup.Id, egeGroup.Id, writingGroup.Id);
-            await SeedQuestionsAsync(dbContext, tutor.Id, students);
+        }
+
+        private static async Task RemoveLegacySeededContentAsync(ApplicationDbContext dbContext, string tutorId)
+        {
+            var seededTestTitles = new[]
+            {
+                "Пробник ЕГЭ: вариант 1",
+                "Типовые задания ЕГЭ: номер 16 и 21",
+                "Пробник ОГЭ: вариант 1",
+                "ОГЭ: диктор на радио",
+                "Творческое задание: ревность и искренние чувства"
+            };
+
+            var seededLessonTitles = new[]
+            {
+                "Задание 27: комментарий без воды",
+                "Пунктуация: причастный и деепричастный оборот",
+                "Изложение: три микротемы без паники",
+                "Устное собеседование: диктор эфира",
+                "Аргументация: дом, память и нравственный выбор"
+            };
+
+            var seededTipTitles = new[]
+            {
+                "Один пробник в день",
+                "Разминка перед сочинением",
+                "Изложение без паники",
+                "Чтение как у диктора",
+                "Отдых тоже часть подготовки",
+                "Лови ошибки сразу"
+            };
+
+            var seededQuestionTopics = new[]
+            {
+                "Комментарий в сочинении",
+                "Изложение"
+            };
+
+            var seededTestIds = await dbContext.LearningTests
+                .Where(test => test.TutorId == tutorId && seededTestTitles.Contains(test.Title))
+                .Select(test => test.Id)
+                .ToListAsync();
+
+            if (seededTestIds.Any())
+            {
+                var answers = await dbContext.StudentAnswers.Where(answer => seededTestIds.Contains(answer.StudentSubmission.LearningTestId)).ToListAsync();
+                var submissions = await dbContext.StudentSubmissions.Where(submission => seededTestIds.Contains(submission.LearningTestId)).ToListAsync();
+                var assignments = await dbContext.TestAssignments.Where(assignment => seededTestIds.Contains(assignment.LearningTestId)).ToListAsync();
+                var questions = await dbContext.LearningTestQuestions.Where(question => seededTestIds.Contains(question.LearningTestId)).ToListAsync();
+                var tests = await dbContext.LearningTests.Where(test => seededTestIds.Contains(test.Id)).ToListAsync();
+
+                dbContext.StudentAnswers.RemoveRange(answers);
+                dbContext.StudentSubmissions.RemoveRange(submissions);
+                dbContext.TestAssignments.RemoveRange(assignments);
+                dbContext.LearningTestQuestions.RemoveRange(questions);
+                dbContext.LearningTests.RemoveRange(tests);
+            }
+
+            var seededLessonIds = await dbContext.Lessons
+                .Where(lesson => seededLessonTitles.Contains(lesson.Title))
+                .Select(lesson => lesson.Id)
+                .ToListAsync();
+
+            if (seededLessonIds.Any())
+            {
+                var lessonAssignmentIds = await dbContext.LessonAssignments
+                    .Where(assignment => seededLessonIds.Contains(assignment.LessonId))
+                    .Select(assignment => assignment.Id)
+                    .ToListAsync();
+
+                var progresses = await dbContext.StudentLessonProgresses.Where(progress => lessonAssignmentIds.Contains(progress.LessonAssignmentId)).ToListAsync();
+                var assignments = await dbContext.LessonAssignments.Where(assignment => seededLessonIds.Contains(assignment.LessonId)).ToListAsync();
+                var lessons = await dbContext.Lessons.Where(lesson => seededLessonIds.Contains(lesson.Id)).ToListAsync();
+
+                dbContext.StudentLessonProgresses.RemoveRange(progresses);
+                dbContext.LessonAssignments.RemoveRange(assignments);
+                dbContext.Lessons.RemoveRange(lessons);
+            }
+
+            var seededTips = await dbContext.StudyTips.Where(tip => seededTipTitles.Contains(tip.Title)).ToListAsync();
+            var seededQuestions = await dbContext.StudentQuestions.Where(question => seededQuestionTopics.Contains(question.Topic)).ToListAsync();
+            dbContext.StudyTips.RemoveRange(seededTips);
+            dbContext.StudentQuestions.RemoveRange(seededQuestions);
+
+            await dbContext.SaveChangesAsync();
         }
 
         private static async Task EnsureExtendedSchemaAsync(ApplicationDbContext dbContext)
@@ -512,4 +594,7 @@ IF COL_LENGTH('StudentSubmissions', 'ReviewedAtUtc') IS NULL
         }
     }
 }
+
+
+
 

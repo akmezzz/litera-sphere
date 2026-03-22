@@ -1,0 +1,117 @@
+@model TutorPlatform.ViewModels.TutorDashboardViewModel
+@{
+    ViewData["Title"] = Model.ActiveSubsection?.Title ?? "Подраздел";
+    var currentSection = Model.ActiveSection;
+    var currentSubsection = Model.ActiveSubsection;
+    var lessons = Model.Lessons.Where(lesson => lesson.ExamType == currentSubsection?.Title).ToList();
+}
+
+<section class="dashboard-hero-grid">
+    <aside class="section-sidebar">
+        <p class="eyebrow">Вкладки</p>
+        <a class="section-square" asp-action="Index" asp-route-tab="overview">
+            <strong>Обзор</strong>
+            <span>Кабинет</span>
+        </a>
+        @foreach (var examSection in Model.Sections)
+        {
+            <a class="section-square @(currentSection?.Key == examSection.Key ? "section-square--active" : null)" asp-action="Section" asp-route-key="@examSection.Key">
+                <strong>@examSection.Title</strong>
+                <span>@examSection.AccentLabel</span>
+            </a>
+        }
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="submissions">Работы</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="lessons">Уроки</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="creative">Творчество</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="tips">Советы</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="questions">Вопросы</a>
+        <a class="section-square section-square--soft" asp-action="Index" asp-route-tab="memes">Мемы</a>
+    </aside>
+
+    <div class="dashboard-main-stack">
+        <section class="dashboard-header dashboard-header--rich">
+            <div>
+                <span class="eyebrow">Подраздел</span>
+                <h1>@currentSubsection?.Title</h1>
+                <p>@currentSubsection?.Description</p>
+            </div>
+            <div class="hero__actions">
+                <a class="btn btn-accent" asp-action="CreateTest">Новый тест</a>
+                <a class="btn btn-ghost" asp-action="CreateCreativeTask">Творческое задание</a>
+            </div>
+        </section>
+
+        <section class="panel panel--section">
+            <div class="panel__header">
+                <div>
+                    <span class="eyebrow">Навигация</span>
+                    <h2>@currentSection?.Title</h2>
+                </div>
+                <a class="btn btn-ghost" asp-action="Section" asp-route-key="@currentSection?.Key">Назад к подразделам</a>
+            </div>
+
+            <div class="section-columns">
+                <div class="panel panel--nested">
+                    <h3>Материалы в подразделе</h3>
+                    @if (currentSubsection?.FeaturedTests.Any() == true)
+                    {
+                        @foreach (var test in currentSubsection.FeaturedTests)
+                        {
+                            <div class="list-card">
+                                <div class="badge-row">
+                                    <span class="tag">@test.MechanicType</span>
+                                    @if (test.IsMockExam)
+                                    {
+                                        <span class="tag tag--warning">Пробник</span>
+                                    }
+                                </div>
+                                <h3>@test.Title</h3>
+                                <p class="muted">@test.ModuleName | @test.QuestionCount заданий | @(test.TimeLimitMinutes.HasValue ? $"{test.TimeLimitMinutes} мин." : "без лимита")</p>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="muted">Пока здесь нет созданных материалов.</p>
+                    }
+                </div>
+
+                <div class="panel panel--nested">
+                    <h3>Типовые задания</h3>
+                    <div class="practice-lines">
+                        @foreach (var task in currentSubsection?.PracticeTasks ?? new List<TutorPlatform.ViewModels.PracticeTaskLineViewModel>())
+                        {
+                            <div class="practice-line">
+                                <strong>@task.TaskNumber</strong>
+                                <span>@task.Label</span>
+                                <em>@task.TaskCount заданий</em>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel panel--nested">
+                <h3>Уроки по подразделу</h3>
+                @if (lessons.Any())
+                {
+                    @foreach (var lesson in lessons)
+                    {
+                        <div class="list-card">
+                            <div class="badge-row">
+                                <span class="tag">@lesson.GroupName</span>
+                                <span class="tag">@lesson.LessonFormat</span>
+                            </div>
+                            <h3>@lesson.Title</h3>
+                            <p>@lesson.Summary</p>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="muted">Пока уроки по этому подразделу не добавлены.</p>
+                }
+            </div>
+        </section>
+    </div>
+</section>

@@ -56,13 +56,12 @@ namespace TutorPlatform.Models
         public static IReadOnlyList<PracticeTaskCatalogItem> BuildPracticeTasks(string examType)
         {
             var maxTask = string.Equals(examType, "ЕГЭ", StringComparison.OrdinalIgnoreCase) ? 26 : 12;
-            var baseCount = string.Equals(examType, "ЕГЭ", StringComparison.OrdinalIgnoreCase) ? 180 : 120;
 
             return Enumerable.Range(1, maxTask)
                 .Select(number => new PracticeTaskCatalogItem
                 {
                     TaskNumber = number,
-                    TaskCount = baseCount + number * (number % 2 == 0 ? 9 : 13),
+                    TaskCount = 0,
                     Label = string.Equals(examType, "ЕГЭ", StringComparison.OrdinalIgnoreCase)
                         ? BuildEgeTaskLabel(number)
                         : BuildOgeTaskLabel(number)
@@ -180,3 +179,4 @@ namespace TutorPlatform.Models
         public string Label { get; set; }
     }
 }
+
