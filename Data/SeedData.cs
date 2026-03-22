@@ -357,22 +357,33 @@ IF COL_LENGTH('StudentSubmissions', 'ReviewedAtUtc') IS NULL
                 }, new[] { egeGroupId, writingGroupId })
             };
 
+            var createdTests = new List<(LearningTest Test, int[] GroupIds)>();
             foreach (var item in tests)
             {
-                dbContext.LearningTests.Add(item.Test);
-            }
-
-            await dbContext.SaveChangesAsync();
-
-            foreach (var item in tests)
-            {
-                foreach (var groupId in item.GroupIds)
+                var exists = await dbContext.LearningTests.AnyAsync(test => test.TutorId == tutorId && test.Title == item.Test.Title);
+                if (exists)
                 {
-                    dbContext.TestAssignments.Add(new TestAssignment { LearningTestId = item.Test.Id, StudentGroupId = groupId });
+                    continue;
                 }
+
+                dbContext.LearningTests.Add(item.Test);
+                createdTests.Add(item);
             }
 
-            await dbContext.SaveChangesAsync();
+            if (createdTests.Any())
+            {
+                await dbContext.SaveChangesAsync();
+
+                foreach (var item in createdTests)
+                {
+                    foreach (var groupId in item.GroupIds)
+                    {
+                        dbContext.TestAssignments.Add(new TestAssignment { LearningTestId = item.Test.Id, StudentGroupId = groupId });
+                    }
+                }
+
+                await dbContext.SaveChangesAsync();
+            }
         }
 
         private static async Task SeedQuestionsAsync(ApplicationDbContext dbContext, string tutorId, ApplicationUser[] students)
@@ -501,3 +512,4 @@ IF COL_LENGTH('StudentSubmissions', 'ReviewedAtUtc') IS NULL
         }
     }
 }
+
